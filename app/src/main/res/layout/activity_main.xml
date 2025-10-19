@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="@color/color_primary"
+    tools:context=".MainActivity">
+        <!-- Заголовок -->
+        <TextView
+            android:id="@+id/titleText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/title_playlist_maker"
+            android:textColor="@android:color/white"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="12dp" />
+
+        <!-- Контейнер с карточками -->
+        <LinearLayout
+            android:id="@+id/cardsContainer"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="fill_vertical"
+            android:weightSum="3"
+
+            android:padding="0dp">
+
+            <!-- Карточка Поиск -->
+            <LinearLayout
+                style="@style/MenuCardStyle"
+                android:id="@+id/card_search">
+
+                <ImageView
+                    style="@style/MenuIconStyle"
+                    android:src="@drawable/ic_search" />
+
+                <TextView
+                    style="@style/MenuTextStyle"
+                    android:text="@string/menu_search" />
+            </LinearLayout>
+
+            <!-- Карточка Медиатека -->
+            <LinearLayout
+                style="@style/MenuCardStyle"
+                android:id="@+id/card_library">
+
+                <ImageView
+                    style="@style/MenuIconStyle"
+                    android:src="@drawable/ic_media" />
+
+                <TextView
+                    style="@style/MenuTextStyle"
+                    android:text="@string/menu_library" />
+            </LinearLayout>
+
+            <!-- Карточка Настройки -->
+            <LinearLayout
+                style="@style/MenuCardStyle"
+                android:id="@+id/card_settings">
+
+                <ImageView
+                    style="@style/MenuIconStyle"
+                    android:src="@drawable/ic_settings" />
+
+                <TextView
+                    style="@style/MenuTextStyle"
+                    android:text="@string/menu_settings" />
+            </LinearLayout>
+        </LinearLayout>
+</LinearLayout>

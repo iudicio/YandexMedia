@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.example.yandexmedia"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.example.yandexmedia"
@@ -40,7 +40,10 @@ android {
 }
 
 dependencies {
-
+    implementation ("androidx.datastore:datastore-preferences:1.1.1")
+    implementation ("com.google.android.material:material:1.12.0")
+    implementation ("androidx.appcompat:appcompat:1.7.0")
+    implementation("androidx.compose.material:material-icons-extended")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)

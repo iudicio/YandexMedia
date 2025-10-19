@@ -1,47 +1,38 @@
 package com.example.yandexmedia
 
+import android.content.Intent
 import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import com.example.yandexmedia.ui.theme.YandexMediaTheme
+import android.widget.LinearLayout
+import androidx.appcompat.app.AppCompatActivity
 
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        // применяем сохранённую тему
+        ThemeManager.applySavedTheme(this)
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        setContent {
-            YandexMediaTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
-            }
+
+        // подключаем XML-разметку
+        setContentView(R.layout.activity_main)
+
+        // находим карточки по id
+        val cardSearch = findViewById<LinearLayout>(R.id.card_search)
+        val cardLibrary = findViewById<LinearLayout>(R.id.card_library)
+        val cardSettings = findViewById<LinearLayout>(R.id.card_settings)
+
+        // обработка кликов
+        cardSearch.setOnClickListener {
+            val intent = Intent(this, SearchActivity::class.java)
+            startActivity(intent)
         }
-    }
-}
 
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
+        cardLibrary.setOnClickListener {
+            val intent = Intent(this, MediaActivity::class.java)
+            startActivity(intent)
+        }
 
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    YandexMediaTheme {
-        Greeting("Android")
+        cardSettings.setOnClickListener {
+            val intent = Intent(this, SettingsActivity::class.java)
+            startActivity(intent)
+        }
     }
 }

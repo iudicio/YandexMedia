@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Базовые цвета приложения -->
+    <color name="color_primary">#1A1B22</color> <!-- Фон главного экрана -->
+    <color name="color_primary_night">#1A1B22</color> <!-- Фон главного экрана -->
+    <color name="color_black">#FFFFFFFF</color>
+    <color name="color_back_ground">#1A1B22</color>
+    <color name="color_white_text">#FFFFFFFF</color>
+</resources>
