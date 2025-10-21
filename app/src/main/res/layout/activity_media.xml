@@ -7,6 +7,7 @@
 
     <!-- Заголовок -->
     <TextView
+        android:fontFamily="@font/ys_display_medium"
         android:id="@+id/titleText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -29,6 +30,7 @@
         android:paddingVertical="8dp">
 
         <TextView
+            android:fontFamily="@font/ys_display_medium"
             android:id="@+id/tabFavorites"
             android:layout_width="0dp"
             android:layout_weight="1"
@@ -41,6 +43,7 @@
             android:paddingVertical="8dp" />
 
         <TextView
+            android:fontFamily="@font/ys_display_medium"
             android:id="@+id/tabPlaylists"
             android:layout_width="0dp"
             android:layout_weight="1"
@@ -79,6 +82,7 @@
             android:contentDescription="@string/app_name" />
 
         <TextView
+            android:fontFamily="@font/ys_display_medium"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/empty_library_message"

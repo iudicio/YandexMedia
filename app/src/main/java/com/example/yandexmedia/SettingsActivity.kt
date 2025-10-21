@@ -6,11 +6,16 @@ import android.os.Bundle
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.Switch
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 
 class SettingsActivity : AppCompatActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
-        ThemeManager.applySavedTheme(this)
+        // Применяем сохранённую тему
+        applySavedTheme()
+
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
 
@@ -20,20 +25,29 @@ class SettingsActivity : AppCompatActivity() {
         val support = findViewById<LinearLayout>(R.id.support)
         val userAgreement = findViewById<LinearLayout>(R.id.userAgreement)
 
-        // Получаем сохранённое состояние темы
+        // Загружаем сохранённое состояние
         val prefs = getSharedPreferences("app_settings", MODE_PRIVATE)
         val isDark = prefs.getBoolean("dark_theme", false)
         darkSwitch.isChecked = isDark
 
-        // Кнопка Назад
+        // Назад
         backButton.setOnClickListener { onBackPressedDispatcher.onBackPressed() }
 
-        // Переключатель темы
+        // Переключение темы
         darkSwitch.setOnCheckedChangeListener { _, checked ->
-            ThemeManager.toggleTheme(this, checked)
+            val editor = prefs.edit()
+            editor.putBoolean("dark_theme", checked)
+            editor.apply()
+
+            // Меняем тему
+            if (checked) {
+                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
+            } else {
+                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
+            }
         }
 
-        // 🔹 Кнопка «Поделиться приложением»
+        // Поделиться приложением
         shareApp.setOnClickListener {
             val shareIntent = Intent(Intent.ACTION_SEND).apply {
                 type = "text/plain"
@@ -45,10 +59,10 @@ class SettingsActivity : AppCompatActivity() {
             startActivity(Intent.createChooser(shareIntent, getString(R.string.share_via)))
         }
 
-        // 🔹 Кнопка «Написать разработчикам»
+        // Написать разработчикам
         support.setOnClickListener {
             val emailIntent = Intent(Intent.ACTION_SEND).apply {
-                type = "message/rfc822" // только почтовые клиенты
+                type = "message/rfc822"
                 putExtra(Intent.EXTRA_EMAIL, arrayOf(getString(R.string.email_to)))
                 putExtra(Intent.EXTRA_SUBJECT, getString(R.string.email_subject))
                 putExtra(Intent.EXTRA_TEXT, getString(R.string.email_body))
@@ -57,20 +71,30 @@ class SettingsActivity : AppCompatActivity() {
             try {
                 startActivity(Intent.createChooser(emailIntent, getString(R.string.email_chooser_title)))
             } catch (ex: android.content.ActivityNotFoundException) {
-                android.widget.Toast.makeText(
+                Toast.makeText(
                     this,
                     getString(R.string.no_email_client),
-                    android.widget.Toast.LENGTH_SHORT
+                    Toast.LENGTH_SHORT
                 ).show()
             }
         }
 
-        // 🔹 Кнопка «Пользовательское соглашение»
+        // Пользовательское соглашение
         userAgreement.setOnClickListener {
             val browserIntent = Intent(Intent.ACTION_VIEW).apply {
                 data = Uri.parse(getString(R.string.offer_link))
             }
             startActivity(browserIntent)
+        }
+    }
+
+    private fun applySavedTheme() {
+        val prefs = getSharedPreferences("app_settings", MODE_PRIVATE)
+        val isDark = prefs.getBoolean("dark_theme", false)
+        if (isDark) {
+            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
+        } else {
+            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
         }
     }
 }

@@ -17,7 +17,6 @@ class MediaActivity : AppCompatActivity() {
     private lateinit var tabIndicator: View
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        ThemeManager.applySavedTheme(this)
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_media)
 

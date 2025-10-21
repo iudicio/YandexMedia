@@ -16,6 +16,7 @@
             android:contentDescription="@string/content_back" />
 
         <TextView
+            android:fontFamily="@font/ys_display_medium"
             style="@style/SettingsTitleText"
             android:text="@string/title_settings" />
     </LinearLayout>

@@ -24,7 +24,7 @@
     <!-- Экран настроек -->
     <string name="content_back">Назад</string>
     <string name="title_settings">Настройки</string>
-    <string name="label_dark_theme">Тёмная тема</string>
+    <string name="label_dark_theme">Темная тема</string>
     <string name="label_share_app">Поделиться приложением</string>
     <string name="label_support">Написать в поддержку</string>
     <string name="label_user_agreement">Пользовательское соглашение</string>
