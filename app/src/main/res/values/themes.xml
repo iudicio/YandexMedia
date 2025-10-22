@@ -2,14 +2,12 @@
 <resources>
 
     <!-- Основная дневная тема -->
-    <style name="Theme.YandexMedia" parent="android:Theme.Material.Light.NoActionBar" />
 
-    <style name="Theme.YandexMedia.AppCompat" parent="Theme.AppCompat.Light.NoActionBar">
+    <style name="Theme.YandexMedia" parent="Theme.MaterialComponents.Light.NoActionBar">
         <item name="colorPrimary">@color/color_primary</item>
         <item name="colorPrimaryDark">@color/color_primary</item>
         <item name="colorAccent">@color/teal_200</item>
 
-        <!-- Светлые цвета -->
         <item name="android:textColor">@color/color_black</item>
         <item name="android:windowBackground">@color/color_back_ground</item>
         <item name="android:navigationBarColor">@color/color_primary</item>

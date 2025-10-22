@@ -6,28 +6,36 @@
 
 
 
-    <style name="MenuCardStyle">
+    <style name="MenuCardStyle" parent="Widget.MaterialComponents.Button.UnelevatedButton">
         <item name="android:layout_width">match_parent</item>
+        <item name="android:fontFamily">@font/ys_display_medium</item>
+        <item name="android:textColor">@android:color/black</item>
         <item name="android:layout_height">0dp</item>
         <item name="android:layout_weight">1</item>
-        <item name="android:layout_marginTop">4dp</item>
-        <item name="android:layout_marginBottom">4dp</item>
-        <item name="android:background">@drawable/card_bg</item>
-        <item name="android:orientation">horizontal</item>
-        <item name="android:gravity">center</item>
+        <item name="android:layout_marginVertical">6dp</item>
+        <item name="android:backgroundTint">@color/color_white</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="cornerRadius">12dp</item>
+        <item name="android:elevation">3dp</item>
+        <item name="android:paddingHorizontal">20dp</item>
+        <item name="android:paddingVertical">12dp</item>
+        <item name="iconGravity">textStart</item>
+        <item name="android:textSize">18sp</item>
     </style>
 
     <style name="MenuIconStyle">
         <item name="android:layout_width">24dp</item>
         <item name="android:layout_height">24dp</item>
         <item name="android:tint">@android:color/black</item>
+        <item name="android:layout_marginEnd">8dp</item>
     </style>
 
     <style name="MenuTextStyle">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:textColor">@android:color/black</item>
-        <item name="android:textSize">16sp</item>
+        <item name="android:textSize">22sp</item>
+        <item name="android:fontFamily">@font/ys_display_medium</item>
     </style>
 
     <!-- ================== Общие стили для экрана Настроек ================== -->
