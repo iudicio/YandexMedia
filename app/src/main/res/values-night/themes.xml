@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <style name="Theme.YandexMedia" parent="Theme.MaterialComponents.NoActionBar">
+        <item name="colorPrimary">@color/color_primary_night</item>
+        <item name="colorPrimaryDark">@color/color_primary_night</item>
+        <item name="colorAccent">@color/teal_200</item>
+
+        <item name="android:textColor">@color/color_white_text</item>
+        <item name="android:windowBackground">@color/color_back_ground</item>
+        <item name="android:navigationBarColor">@color/color_primary_night</item>
+        <item name="android:statusBarColor">@color/color_primary_night</item>
+    </style>
+
+</resources>
