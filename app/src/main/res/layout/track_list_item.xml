@@ -1,19 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
-    android:padding="8dp"
+    android:padding="@dimen/padding_medium"
     android:gravity="center_vertical">
 
     <!-- Обложка трека -->
-    <ImageView
+    <com.google.android.material.imageview.ShapeableImageView
         android:id="@+id/artworkImageView"
-        android:layout_width="60dp"
-        android:layout_height="60dp"
+        android:layout_width="@dimen/track_image_size"
+        android:layout_height="@dimen/track_image_size"
+        android:layout_marginEnd="@dimen/margin_large"
         android:scaleType="centerCrop"
-        android:layout_marginEnd="12dp"
-        android:contentDescription="@string/content_album_art" />
+        android:background="@color/color_holder"
+        android:contentDescription="@string/content_album_art"
+        app:shapeAppearanceOverlay="@style/RoundedImageStyle" />
 
     <!-- Текстовая часть -->
     <LinearLayout
@@ -25,9 +28,10 @@
         <!-- Название трека -->
         <TextView
             android:id="@+id/trackNameTextView"
-            android:layout_width="wrap_content"
+            android:fontFamily="@font/ys_display_regular"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textSize="16sp"
+            android:textSize="@dimen/text_title"
             android:textStyle="bold"
             android:textColor="@color/color_black"
             android:maxLines="1"
@@ -35,33 +39,39 @@
 
         <!-- Контейнер для исполнителя и времени -->
         <LinearLayout
+            android:fontFamily="@font/ys_display_regular"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical">
 
+            <!-- Имя исполнителя -->
             <TextView
                 android:id="@+id/artistNameTextView"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textSize="14sp"
-                android:textColor="@color/color_track_gray" />
+                android:textSize="@dimen/text_subtitle"
+                android:textColor="@color/color_track_gray"
+                android:singleLine="true"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:layout_marginEnd="@dimen/margin_small" />
 
             <!-- Точка-разделитель -->
-            <TextView
+            <ImageView
                 android:id="@+id/dotSeparator"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginHorizontal="4dp"
-                android:text="•"
-                android:textSize="14sp"
-                android:textColor="@color/color_track_gray" />
+                android:layout_width="@dimen/dot_separator_size"
+                android:layout_height="@dimen/dot_separator_size"
+                android:layout_marginEnd="@dimen/margin_small"
+                android:src="@drawable/ellipse_1"
+                android:tint="@color/color_track_gray" />
 
+            <!-- Время трека -->
             <TextView
                 android:id="@+id/trackTimeTextView"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textSize="14sp"
+                android:textSize="@dimen/text_subtitle"
                 android:textColor="@color/color_track_gray" />
         </LinearLayout>
     </LinearLayout>
@@ -69,10 +79,10 @@
     <!-- Стрелка вправо -->
     <ImageView
         android:id="@+id/arrowRightImageView"
-        android:layout_width="20dp"
-        android:layout_height="20dp"
-        android:layout_marginStart="8dp"
+        android:layout_width="@dimen/track_arrow_size"
+        android:layout_height="@dimen/track_arrow_size"
+        android:layout_marginStart="@dimen/margin_medium"
         android:src="@drawable/ic_arrow_right"
-        android:tint="@color/color_track_gray"
-        />
+        android:tint="@color/color_track_gray" />
+
 </LinearLayout>

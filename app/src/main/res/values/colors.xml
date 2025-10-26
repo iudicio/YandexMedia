@@ -10,7 +10,7 @@
     <color name="color_back_ground">#FFFFFF</color>
     <color name="color_white_text">#000000</color>
     <color name="color_track_gray">#AEAFB4</color>
-
+    <color name="color_holder">#FFFFFF</color>
     <!-- Акцент -->
     <color name="color_accent">#FF03DAC5</color>
     <!-- Палитра по умолчанию (оставлена) -->

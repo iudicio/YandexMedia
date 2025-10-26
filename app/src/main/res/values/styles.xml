@@ -97,4 +97,9 @@
         <item name="android:tint">@color/color_black</item>
     </style>
 
+    <style name="RoundedImageStyle">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">12dp</item>
+    </style>
+
 </resources>
