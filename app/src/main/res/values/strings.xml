@@ -45,5 +45,7 @@
     <!-- Пользовательское соглашение -->
     <string name="offer_link">https://yandex.ru/legal/practicum_offer/</string>
 
+    <string name="content_album_art">Обложка альбома</string>
+
 
 </resources>

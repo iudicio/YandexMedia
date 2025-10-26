@@ -9,6 +9,7 @@
     <color name="color_gray_dark">#A0A0A0</color>
     <color name="color_back_ground">#FFFFFF</color>
     <color name="color_white_text">#000000</color>
+    <color name="color_track_gray">#AEAFB4</color>
 
     <!-- Акцент -->
     <color name="color_accent">#FF03DAC5</color>
