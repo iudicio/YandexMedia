@@ -6,4 +6,7 @@
     <color name="color_black">#FFFFFFFF</color>
     <color name="color_back_ground">#1A1B22</color>
     <color name="color_white_text">#FFFFFFFF</color>
+    <color name="color_track_gray">#FFFFFFFF</color>
+    <color name="color_holder">#1A1B22</color>
+
 </resources>
