@@ -1,47 +1,30 @@
 package com.example.yandexmedia
 
+import android.content.Intent
 import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import com.example.yandexmedia.ui.theme.YandexMediaTheme
+import com.google.android.material.button.MaterialButton
+import androidx.appcompat.app.AppCompatActivity
 
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        setContent {
-            YandexMediaTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
-            }
+        setContentView(R.layout.activity_main)
+
+        val cardSearch = findViewById<MaterialButton>(R.id.card_search)
+        val cardLibrary = findViewById<MaterialButton>(R.id.card_library)
+        val cardSettings = findViewById<MaterialButton>(R.id.card_settings)
+
+        cardSearch.setOnClickListener {
+            startActivity(Intent(this, SearchActivity::class.java))
         }
-    }
-}
 
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
+        cardLibrary.setOnClickListener {
+            startActivity(Intent(this, MediaActivity::class.java))
+        }
 
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    YandexMediaTheme {
-        Greeting("Android")
+        cardSettings.setOnClickListener {
+            startActivity(Intent(this, SettingsActivity::class.java))
+        }
     }
 }
