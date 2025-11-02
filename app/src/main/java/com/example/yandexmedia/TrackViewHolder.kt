@@ -19,11 +19,11 @@ class TrackViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         artistNameTextView.text = track.artistName
         trackTimeTextView.text = track.trackTime
 
-        // Используем Glide с плейсхолдером и скруглением
         val requestOptions = RequestOptions()
-            .transform(RoundedCorners(16)) // скругление углов
-            .placeholder(R.drawable.ic_placeholder) // показывается, пока грузится
-            .error(R.drawable.ic_placeholder) // показывается при ошибке (например, нет интернета)
+            .transform(RoundedCorners(itemView.resources.getDimensionPixelSize(R.dimen.track_corner_radius)))
+            .placeholder(R.drawable.ic_placeholder)
+            .error(R.drawable.ic_placeholder)
+            .centerCrop()
 
         Glide.with(itemView)
             .load(track.artworkUrl100)

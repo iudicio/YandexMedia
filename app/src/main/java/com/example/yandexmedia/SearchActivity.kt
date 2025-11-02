@@ -34,6 +34,7 @@ class SearchActivity : AppCompatActivity() {
         recyclerView.layoutManager = LinearLayoutManager(this)
 
 // Создаем список треков вручную
+        // Создаем список треков вручную
         val tracks = arrayListOf(
             Track(
                 "Smells Like Teen Spirit",
@@ -63,9 +64,10 @@ class SearchActivity : AppCompatActivity() {
                 "Sweet Child O'Mine",
                 "Guns N' Roses",
                 "5:03",
-                "https://is5-ssl.mzstatic.com/image/thumb/Music125/v4/a0/4d/c4/a04dc484-03c"
+                "https://is5-ssl.mzstatic.com/image/thumb/Music125/v4/a0/4d/c4/a04dc484-03cc-02aa-fa82-5334fcb4bc16/18UMGIM24878.rgb.jpg/100x100bb.jpg"
             )
         )
+
 
         val adapter = TrackAdapter(tracks)
         recyclerView.adapter = adapter
