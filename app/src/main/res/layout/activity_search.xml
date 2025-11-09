@@ -12,7 +12,6 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:padding="16dp"
-
         android:gravity="center_vertical">
 
         <ImageView
@@ -22,11 +21,11 @@
             android:contentDescription="@string/content_back" />
 
         <TextView
-            android:fontFamily="@font/ys_display_medium"
             android:id="@+id/titleText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="12dp"
+            android:fontFamily="@font/ys_display_medium"
             android:text="@string/title_search"
             android:textColor="@color/color_black"
             android:textSize="18sp"
@@ -40,8 +39,8 @@
         android:layout_height="48dp"
         android:layout_below="@id/header"
         android:layout_marginHorizontal="16dp"
-        android:layout_marginBottom="8dp"
         android:layout_marginTop="4dp"
+        android:layout_marginBottom="8dp"
         app:cardCornerRadius="8dp"
         app:cardElevation="0dp">
 
@@ -53,31 +52,33 @@
             android:gravity="center_vertical"
             android:paddingHorizontal="8dp">
 
-            <!-- 🔍 Иконка поиска с отступом справа -->
+            <!-- Иконка поиска -->
             <ImageView
                 android:layout_width="20dp"
                 android:layout_height="20dp"
                 android:src="@drawable/ic_search_search"
                 android:layout_marginEnd="8dp" />
 
+            <!-- Поле ввода -->
             <FrameLayout
                 android:layout_width="0dp"
                 android:layout_weight="1"
                 android:layout_height="match_parent">
 
                 <EditText
-                    android:fontFamily="@font/ys_display_regular"
                     android:id="@+id/searchEditText"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
+                    android:background="@null"
                     android:hint="@string/hint_search"
+                    android:inputType="text"
                     android:paddingEnd="32dp"
+                    android:singleLine="true"
                     android:textColor="@android:color/black"
                     android:textColorHint="@android:color/darker_gray"
-                    android:background="@null"
-                    android:inputType="text"
-                    android:singleLine="true" />
+                    android:fontFamily="@font/ys_display_regular" />
 
+                <!-- Кнопка очистки -->
                 <ImageView
                     android:id="@+id/clearButton"
                     android:layout_width="20dp"
@@ -90,10 +91,14 @@
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 
-    <FrameLayout
-        android:id="@+id/searchResultsContainer"
+    <!-- Контейнер для списка результатов -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/searchResultsRecyclerView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_below="@id/searchCard" />
+        android:layout_below="@id/searchCard"
+        android:padding="8dp"
+        android:clipToPadding="false"
+        android:scrollbars="vertical" />
 
 </RelativeLayout>
