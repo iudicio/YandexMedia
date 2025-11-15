@@ -44,8 +44,11 @@
 
     <!-- Пользовательское соглашение -->
     <string name="offer_link">https://yandex.ru/legal/practicum_offer/</string>
-
     <string name="content_album_art">Обложка альбома</string>
 
+    <string name="nothing_found">Ничего не нашлось</string>
+    <string name="network_error">Проблемы со связью</string>
+    <string name="network_error2">Загрузка не удалась. Проверьте подключение к интернету </string>
+    <string name="update">Обновить</string>
 
 </resources>
