@@ -93,8 +93,8 @@ class SearchActivity : AppCompatActivity() {
                 val url = URL("https://itunes.apple.com/search?entity=song&term=$encodedQuery")
                 val connection = url.openConnection() as HttpURLConnection
                 connection.requestMethod = "GET"
-                connection.connectTimeout = 5000
-                connection.readTimeout = 5000
+                connection.connectTimeout = 1000
+                connection.readTimeout = 1000
 
                 val responseCode = connection.responseCode
                 if (responseCode == HttpURLConnection.HTTP_OK) {

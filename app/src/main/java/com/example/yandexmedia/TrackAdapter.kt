@@ -34,7 +34,10 @@ class TrackAdapter(private val tracks: ArrayList<Track>) :
 
         Glide.with(holder.itemView.context)
             .load(track.artworkUrl100)
+            .placeholder(R.drawable.ic_placeholder)   // Показывается, пока картинка грузится
+            .error(R.drawable.ic_placeholder)          // Показывается, если картинка не загрузилась
             .into(holder.artworkImageView)
+
     }
 
     override fun getItemCount(): Int = tracks.size

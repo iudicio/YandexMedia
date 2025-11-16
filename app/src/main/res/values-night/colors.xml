@@ -9,6 +9,6 @@
     <color name="color_track_gray">#FFFFFFFF</color>
     <color name="color_holder">#1A1B22</color>
     <color name="btn_update">#FFFFFFFF</color>
-    <color name="btn_update_text">#00000000</color>
+    <color name="btn_update_text">#000000</color>
 
 </resources>

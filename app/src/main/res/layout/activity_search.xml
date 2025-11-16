@@ -148,39 +148,41 @@
 
         <TextView
             android:id="@+id/networkErrorTitle"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/network_error"
             android:textColor="@color/color_black"
             android:textSize="18sp"
             android:fontFamily="@font/ys_display_medium"
+            android:gravity="center"
             android:layout_marginBottom="8dp" />
 
         <TextView
-            android:id="@+id/networkErrorSubtitle"
-            android:layout_width="wrap_content"
+            android:id="@+id/networkErrorTitle2"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/network_error2"
             android:textColor="@color/color_black"
-            android:textSize="16sp"
-            android:fontFamily="@font/ys_display_regular"
+            android:textSize="18sp"
+            android:fontFamily="@font/ys_display_medium"
             android:gravity="center"
-            android:layout_marginBottom="16dp" />
+            android:layout_marginBottom="8dp" />
 
-        <Button
+
+        <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/retryButton"
-            android:layout_width="wrap_content"
+            android:layout_width="120dp"
             android:layout_height="36dp"
+            android:layout_marginTop="24dp"
+            android:background="@drawable/bg_retry_button"
             android:text="@string/update"
             android:textColor="@color/btn_update_text"
             android:textSize="14sp"
+            android:textAllCaps="false"
             android:fontFamily="@font/ys_display_medium"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
-            android:background="@drawable/rounded_button_dark"
-            android:minHeight="0dp"
-            android:minWidth="0dp"
-            android:layout_marginTop="8dp" />
+            android:gravity="center" />
+
+
 
     </LinearLayout>
 
