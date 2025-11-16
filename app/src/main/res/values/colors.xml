@@ -21,5 +21,8 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <color name="btn_update">#000000</color>        <!-- чёрная кнопка -->
+    <color name="btn_update_text">#FFFFFF</color> <!-- белый текст -->
+
 
 </resources>
