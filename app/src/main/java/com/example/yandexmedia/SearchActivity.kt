@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
+import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
@@ -22,72 +23,164 @@ import java.net.UnknownHostException
 
 class SearchActivity : AppCompatActivity() {
 
-    private lateinit var adapter: TrackAdapter
-    private lateinit var recyclerView: RecyclerView
+    private lateinit var searchAdapter: TrackAdapter
+    private lateinit var searchRecyclerView: RecyclerView
+
     private lateinit var placeholderLayout: LinearLayout
     private lateinit var emptyImageView: ImageView
     private lateinit var emptyTextView: TextView
     private lateinit var networkErrorLayout: LinearLayout
     private lateinit var retryButton: Button
 
+    private lateinit var historyContainer: LinearLayout
+    private lateinit var historyRecyclerView: RecyclerView
+    private lateinit var clearHistoryButton: Button
+    private lateinit var historyAdapter: TrackAdapter
+    private lateinit var searchHistory: SearchHistory
+
+    private lateinit var searchEditText: EditText
+    private lateinit var clearButton: ImageView
+
     private var searchQueryText: String = ""
+
+    private val ioScope = CoroutineScope(Dispatchers.IO)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_search)
 
-        val backButton = findViewById<ImageView>(R.id.backButton)
-        val clearButton = findViewById<ImageView>(R.id.clearButton)
-        val searchEditText = findViewById<EditText>(R.id.searchEditText)
+        initViews()
+        initHistory()
+        initSearchList()
+        initListeners()
 
-        recyclerView = findViewById(R.id.searchResultsRecyclerView)
+        searchEditText.requestFocus()
+        showHistoryIfNeeded()
+    }
+
+    private fun initViews() {
+        val backButton = findViewById<ImageView>(R.id.backButton)
+
+        searchEditText = findViewById(R.id.searchEditText)
+        clearButton = findViewById(R.id.clearButton)
+
+        searchRecyclerView = findViewById(R.id.searchResultsRecyclerView)
+
         placeholderLayout = findViewById(R.id.placeholderLayout)
         emptyImageView = findViewById(R.id.emptyImageView)
         emptyTextView = findViewById(R.id.emptyTextView)
+
         networkErrorLayout = findViewById(R.id.networkErrorLayout)
         retryButton = findViewById(R.id.retryButton)
 
-        recyclerView.layoutManager = LinearLayoutManager(this)
-        adapter = TrackAdapter(arrayListOf())
-        recyclerView.adapter = adapter
+        historyContainer = findViewById(R.id.historyContainer)
+        historyRecyclerView = findViewById(R.id.historyRecyclerView)
+        clearHistoryButton = findViewById(R.id.clearHistoryButton)
 
         backButton.setOnClickListener { finish() }
+    }
+
+    private fun initHistory() {
+        val prefs = getSharedPreferences("search_history_prefs", Context.MODE_PRIVATE)
+        searchHistory = SearchHistory(prefs)
+
+        historyRecyclerView.layoutManager = LinearLayoutManager(this)
+        historyAdapter = TrackAdapter(arrayListOf()) { track ->
+            searchHistory.addTrack(track)
+            showHistoryIfNeeded()
+            // TODO: переход на экран трека
+        }
+        historyRecyclerView.adapter = historyAdapter
+    }
+
+    private fun initSearchList() {
+        searchRecyclerView.layoutManager = LinearLayoutManager(this)
+        searchAdapter = TrackAdapter(arrayListOf()) { track ->
+            searchHistory.addTrack(track)
+            // TODO: переход на экран трека
+        }
+        searchRecyclerView.adapter = searchAdapter
+    }
+
+    private fun initListeners() {
 
         clearButton.setOnClickListener {
             searchEditText.text.clear()
             hideKeyboard(searchEditText)
-            adapter.updateTracks(emptyList())
-            showDefaultState()
+            searchAdapter.updateTracks(emptyList())
+            showHistoryIfNeeded()
+        }
+
+        clearHistoryButton.setOnClickListener {
+            searchHistory.clear()
+            historyAdapter.updateTracks(emptyList())
+            historyContainer.isVisible = false
         }
 
         retryButton.setOnClickListener {
             if (searchQueryText.length > 2) {
                 searchTracks(searchQueryText)
             } else {
-                showDefaultState()
+                showHistoryIfNeeded()
+            }
+        }
+
+        searchEditText.setOnFocusChangeListener { _: View, hasFocus: Boolean ->
+            if (hasFocus && searchEditText.text.isEmpty()) {
+                showHistoryIfNeeded()
+            } else {
+                historyContainer.isVisible = false
             }
         }
 
         searchEditText.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                 searchQueryText = s?.toString() ?: ""
                 clearButton.isVisible = !s.isNullOrEmpty()
 
                 if (searchQueryText.length > 2) {
+                    historyContainer.isVisible = false
                     searchTracks(searchQueryText)
                 } else {
-                    adapter.updateTracks(emptyList())
-                    showDefaultState()
+                    searchAdapter.updateTracks(emptyList())
+                    if (searchEditText.hasFocus()) {
+                        showHistoryIfNeeded()
+                    } else {
+                        showDefaultState()
+                    }
                 }
             }
+
             override fun afterTextChanged(s: Editable?) {}
         })
     }
 
-    /** Поиск треков */
+    /** история */
+
+    private fun showHistoryIfNeeded() {
+        val history = searchHistory.getHistory()
+        val shouldShow = searchEditText.hasFocus() &&
+                searchEditText.text.isEmpty() &&
+                history.isNotEmpty()
+
+        if (shouldShow) {
+            historyAdapter.updateTracks(history)
+            historyContainer.isVisible = true
+
+            searchRecyclerView.isVisible = false
+            placeholderLayout.isVisible = false
+            networkErrorLayout.isVisible = false
+        } else {
+            historyContainer.isVisible = false
+        }
+    }
+
+    /** поиск */
+
     private fun searchTracks(query: String) {
-        CoroutineScope(Dispatchers.IO).launch {
+        ioScope.launch {
             try {
                 val encodedQuery = URLEncoder.encode(query, "UTF-8")
                 val url = URL("https://itunes.apple.com/search?entity=song&term=$encodedQuery")
@@ -98,11 +191,15 @@ class SearchActivity : AppCompatActivity() {
 
                 val responseCode = connection.responseCode
                 if (responseCode == HttpURLConnection.HTTP_OK) {
-                    val response = connection.inputStream.bufferedReader().use { it.readText() }
+                    val response = connection.inputStream
+                        .bufferedReader()
+                        .use { it.readText() }
+
                     val trackList = parseTracks(response)
 
                     withContext(Dispatchers.Main) {
-                        adapter.updateTracks(trackList)
+                        historyContainer.isVisible = false
+                        searchAdapter.updateTracks(trackList)
                         showResultState(trackList.isEmpty())
                     }
                 } else {
@@ -111,7 +208,6 @@ class SearchActivity : AppCompatActivity() {
                     }
                 }
                 connection.disconnect()
-
             } catch (e: UnknownHostException) {
                 withContext(Dispatchers.Main) { showNetworkError() }
             } catch (e: Exception) {
@@ -121,7 +217,6 @@ class SearchActivity : AppCompatActivity() {
         }
     }
 
-    /** Разбор JSON */
     private fun parseTracks(json: String): List<Track> {
         val resultList = mutableListOf<Track>()
         val jsonObject = JSONObject(json)
@@ -132,14 +227,20 @@ class SearchActivity : AppCompatActivity() {
             val trackName = trackObj.optString("trackName", "Без названия")
             val artistName = trackObj.optString("artistName", "Неизвестен")
             val trackTimeMillis = trackObj.optLong("trackTimeMillis", 0)
-            val artworkUrl = trackObj.optString("artworkUrl100", "")
+            val artworkUrl100 = trackObj.optString("artworkUrl100", "")
 
-            resultList.add(Track(trackName, artistName, millisToTime(trackTimeMillis), artworkUrl))
+            resultList.add(
+                Track(
+                    trackName = trackName,
+                    artistName = artistName,
+                    trackTime = millisToTime(trackTimeMillis),
+                    artworkUrl100 = artworkUrl100
+                )
+            )
         }
         return resultList
     }
 
-    /** Преобразование миллисекунд в M:SS */
     private fun millisToTime(ms: Long): String {
         val totalSeconds = ms / 1000
         val minutes = totalSeconds / 60
@@ -147,28 +248,30 @@ class SearchActivity : AppCompatActivity() {
         return String.format("%d:%02d", minutes, seconds)
     }
 
-    /** Скрыть клавиатуру */
+    /** UI-хелперы */
+
     private fun hideKeyboard(editText: EditText) {
         val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
         imm.hideSoftInputFromWindow(editText.windowToken, 0)
     }
 
-    /** Отображение состояний */
     private fun showResultState(isEmpty: Boolean) {
-        recyclerView.isVisible = !isEmpty
+        searchRecyclerView.isVisible = !isEmpty
         placeholderLayout.isVisible = isEmpty
         networkErrorLayout.isVisible = false
     }
 
     private fun showNetworkError() {
-        recyclerView.isVisible = false
+        searchRecyclerView.isVisible = false
         placeholderLayout.isVisible = false
         networkErrorLayout.isVisible = true
+        historyContainer.isVisible = false
     }
 
     private fun showDefaultState() {
-        recyclerView.isVisible = false
+        searchRecyclerView.isVisible = false
         placeholderLayout.isVisible = false
         networkErrorLayout.isVisible = false
+        historyContainer.isVisible = false
     }
 }

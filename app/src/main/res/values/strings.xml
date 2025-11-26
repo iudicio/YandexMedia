@@ -50,5 +50,6 @@
     <string name="network_error">Проблемы со связью</string>
     <string name="network_error2">Загрузка не удалась. Проверьте подключение к интернету </string>
     <string name="update">Обновить</string>
+    <string name="history">Вы искали</string>
 
 </resources>

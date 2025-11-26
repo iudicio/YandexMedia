@@ -9,8 +9,10 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.google.android.material.imageview.ShapeableImageView
 
-class TrackAdapter(private val tracks: ArrayList<Track>) :
-    RecyclerView.Adapter<TrackAdapter.TrackViewHolder>() {
+class TrackAdapter(
+    private val tracks: ArrayList<Track>,
+    private val onClick: ((Track) -> Unit)? = null
+) : RecyclerView.Adapter<TrackAdapter.TrackViewHolder>() {
 
     class TrackViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val trackNameTextView: TextView = view.findViewById(R.id.trackNameTextView)
@@ -34,15 +36,17 @@ class TrackAdapter(private val tracks: ArrayList<Track>) :
 
         Glide.with(holder.itemView.context)
             .load(track.artworkUrl100)
-            .placeholder(R.drawable.ic_placeholder)   // Показывается, пока картинка грузится
-            .error(R.drawable.ic_placeholder)          // Показывается, если картинка не загрузилась
+            .placeholder(R.drawable.ic_placeholder)
+            .error(R.drawable.ic_placeholder)
             .into(holder.artworkImageView)
 
+        holder.itemView.setOnClickListener {
+            onClick?.invoke(track)
+        }
     }
 
     override fun getItemCount(): Int = tracks.size
 
-    // 🔹 метод для обновления списка
     fun updateTracks(newTracks: List<Track>) {
         tracks.clear()
         tracks.addAll(newTracks)
