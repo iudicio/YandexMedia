@@ -178,7 +178,6 @@ class SearchActivity : AppCompatActivity() {
     }
 
     /** поиск */
-
     private fun searchTracks(query: String) {
         ioScope.launch {
             try {
@@ -195,22 +194,28 @@ class SearchActivity : AppCompatActivity() {
                         .bufferedReader()
                         .use { it.readText() }
 
+                    // если запрос прошёл, просто парсим и смотрим размер списка
                     val trackList = parseTracks(response)
 
                     withContext(Dispatchers.Main) {
                         historyContainer.isVisible = false
                         searchAdapter.updateTracks(trackList)
+                        // пустой список = состояние "ничего не найдено"
                         showResultState(trackList.isEmpty())
                     }
                 } else {
+                    // сервер вернул не 200 → считаем сетевой ошибкой
                     withContext(Dispatchers.Main) {
                         showNetworkError()
                     }
                 }
                 connection.disconnect()
+
             } catch (e: UnknownHostException) {
+                // реально нет сети
                 withContext(Dispatchers.Main) { showNetworkError() }
             } catch (e: Exception) {
+                // что-то пошло не так при разборе — лучше тоже показать "нет соединения"
                 e.printStackTrace()
                 withContext(Dispatchers.Main) { showNetworkError() }
             }

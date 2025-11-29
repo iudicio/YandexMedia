@@ -92,7 +92,7 @@
     <LinearLayout
         android:id="@+id/historyContainer"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="match_parent"
         android:layout_below="@id/searchCard"
         android:orientation="vertical"
         android:paddingHorizontal="16dp"
@@ -112,22 +112,23 @@
             android:gravity="center"
             android:layout_marginBottom="12dp" />
 
-        <!-- список треков истории -->
+        <!-- список треков истории: занимает всё остальное место -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/historyRecyclerView"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:nestedScrollingEnabled="false"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:nestedScrollingEnabled="true"
             android:clipToPadding="false"
-            android:paddingBottom="24dp" />
+            android:paddingBottom="16dp" />
 
-        <!-- Кнопка "Очистить историю" как в макете -->
+        <!-- Кнопка "Очистить историю" всегда внизу контейнера -->
         <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/clearHistoryButton"
             android:layout_width="wrap_content"
             android:layout_height="36dp"
             android:layout_marginTop="0dp"
-            android:layout_marginBottom="8dp"
+            android:layout_marginBottom="16dp"
             android:layout_gravity="center_horizontal"
             android:background="@drawable/bg_clear_history_button"
             android:paddingLeft="20dp"
