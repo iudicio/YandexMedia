@@ -29,8 +29,8 @@
         <TextView
             style="@style/SettingsItemText"
             android:text="@string/label_dark_theme" />
-        <Switch
-            android:id="@+id/darkThemeSwitch"
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/themeSwitcher"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:checked="false" />

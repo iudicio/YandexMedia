@@ -5,46 +5,35 @@ import android.net.Uri
 import android.os.Bundle
 import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.Switch
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.app.AppCompatDelegate
+import com.google.android.material.switchmaterial.SwitchMaterial
 
 class SettingsActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Применяем сохранённую тему
-        applySavedTheme()
-
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
 
         val backButton = findViewById<ImageView>(R.id.backButton)
-        val darkSwitch = findViewById<Switch>(R.id.darkThemeSwitch)
+        val darkSwitch = findViewById<SwitchMaterial>(R.id.themeSwitcher)
         val shareApp = findViewById<LinearLayout>(R.id.shareApp)
         val support = findViewById<LinearLayout>(R.id.support)
         val userAgreement = findViewById<LinearLayout>(R.id.userAgreement)
 
-        // Загружаем сохранённое состояние
-        val prefs = getSharedPreferences("app_settings", MODE_PRIVATE)
-        val isDark = prefs.getBoolean("dark_theme", false)
-        darkSwitch.isChecked = isDark
+        val app = application as Appp
+
+        // Устанавливаем начальное состояние переключателя
+        darkSwitch.isChecked = app.darkTheme
 
         // Назад
-        backButton.setOnClickListener { onBackPressedDispatcher.onBackPressed() }
+        backButton.setOnClickListener {
+            onBackPressedDispatcher.onBackPressed()
+        }
 
         // Переключение темы
         darkSwitch.setOnCheckedChangeListener { _, checked ->
-            val editor = prefs.edit()
-            editor.putBoolean("dark_theme", checked)
-            editor.apply()
-
-            // Меняем тему
-            if (checked) {
-                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
-            } else {
-                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
-            }
+            app.switchTheme(checked)
         }
 
         // Поделиться приложением
@@ -69,7 +58,12 @@ class SettingsActivity : AppCompatActivity() {
             }
 
             try {
-                startActivity(Intent.createChooser(emailIntent, getString(R.string.email_chooser_title)))
+                startActivity(
+                    Intent.createChooser(
+                        emailIntent,
+                        getString(R.string.email_chooser_title)
+                    )
+                )
             } catch (ex: android.content.ActivityNotFoundException) {
                 Toast.makeText(
                     this,
@@ -85,16 +79,6 @@ class SettingsActivity : AppCompatActivity() {
                 data = Uri.parse(getString(R.string.offer_link))
             }
             startActivity(browserIntent)
-        }
-    }
-
-    private fun applySavedTheme() {
-        val prefs = getSharedPreferences("app_settings", MODE_PRIVATE)
-        val isDark = prefs.getBoolean("dark_theme", false)
-        if (isDark) {
-            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
-        } else {
-            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
         }
     }
 }

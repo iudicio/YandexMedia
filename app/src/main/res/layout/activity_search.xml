@@ -52,14 +52,12 @@
             android:gravity="center_vertical"
             android:paddingHorizontal="8dp">
 
-            <!-- Иконка поиска -->
             <ImageView
                 android:layout_width="20dp"
                 android:layout_height="20dp"
                 android:src="@drawable/ic_search_search"
                 android:layout_marginEnd="8dp" />
 
-            <!-- Поле ввода -->
             <FrameLayout
                 android:layout_width="0dp"
                 android:layout_weight="1"
@@ -78,7 +76,6 @@
                     android:textColorHint="@android:color/darker_gray"
                     android:fontFamily="@font/ys_display_regular" />
 
-                <!-- Кнопка очистки -->
                 <ImageView
                     android:id="@+id/clearButton"
                     android:layout_width="20dp"
@@ -90,8 +87,59 @@
             </FrameLayout>
         </LinearLayout>
     </androidx.cardview.widget.CardView>
+    <!-- История поиска -->
+    <!-- История поиска -->
+    <LinearLayout
+        android:id="@+id/historyContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/searchCard"
+        android:orientation="vertical"
+        android:paddingHorizontal="16dp"
+        android:paddingTop="8dp"
+        android:visibility="gone"
+        android:gravity="center_horizontal">
 
-    <!-- Контейнер для списка результатов -->
+        <!-- Заголовок "Вы искали" -->
+        <TextView
+            android:id="@+id/historyTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Вы искали"
+            android:textSize="19sp"
+            android:textColor="@color/color_black"
+            android:fontFamily="@font/ys_display_medium"
+            android:gravity="center"
+            android:layout_marginBottom="12dp" />
+
+        <!-- список треков истории -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/historyRecyclerView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:nestedScrollingEnabled="false"
+            android:clipToPadding="false"
+            android:paddingBottom="24dp" />
+
+        <!-- Кнопка "Очистить историю" как в макете -->
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/clearHistoryButton"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:layout_marginTop="0dp"
+            android:layout_marginBottom="8dp"
+            android:layout_gravity="center_horizontal"
+            android:background="@drawable/bg_clear_history_button"
+            android:paddingLeft="20dp"
+            android:paddingRight="20dp"
+            android:textAllCaps="false"
+            android:textSize="14sp"
+            android:textColor="@color/btn_update_text"
+            android:fontFamily="@font/ys_display_medium" />
+    </LinearLayout>
+
+
+    <!-- Список результатов -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/searchResultsRecyclerView"
         android:layout_width="match_parent"
@@ -100,5 +148,93 @@
         android:padding="8dp"
         android:clipToPadding="false"
         android:scrollbars="vertical" />
+
+    <!-- Плейсхолдер "ничего не найдено" -->
+    <LinearLayout
+        android:id="@+id/placeholderLayout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:visibility="gone"
+        android:padding="32dp"
+        android:layout_below="@id/searchCard">
+
+        <ImageView
+            android:id="@+id/emptyImageView"
+            android:layout_width="120dp"
+            android:layout_height="120dp"
+            android:src="@drawable/ic_logo_media"
+            android:layout_marginBottom="16dp"
+            android:contentDescription="@string/nothing_found" />
+
+        <TextView
+            android:id="@+id/emptyTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/nothing_found"
+            android:textColor="@color/color_black"
+            android:textSize="16sp"
+            android:fontFamily="@font/ys_display_medium" />
+    </LinearLayout>
+
+    <!-- Плейсхолдер "нет соединения" -->
+    <LinearLayout
+        android:id="@+id/networkErrorLayout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:visibility="gone"
+        android:padding="32dp"
+        android:layout_below="@id/searchCard">
+
+        <ImageView
+            android:id="@+id/networkErrorImage"
+            android:layout_width="120dp"
+            android:layout_height="120dp"
+            android:src="@drawable/not_connection"
+            android:layout_marginBottom="16dp"
+            android:contentDescription="@string/network_error" />
+
+        <TextView
+            android:id="@+id/networkErrorTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/network_error"
+            android:textColor="@color/color_black"
+            android:textSize="18sp"
+            android:fontFamily="@font/ys_display_medium"
+            android:gravity="center"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:id="@+id/networkErrorTitle2"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/network_error2"
+            android:textColor="@color/color_black"
+            android:textSize="18sp"
+            android:fontFamily="@font/ys_display_medium"
+            android:gravity="center"
+            android:layout_marginBottom="8dp" />
+
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/retryButton"
+            android:layout_width="120dp"
+            android:layout_height="36dp"
+            android:layout_marginTop="24dp"
+            android:background="@drawable/bg_retry_button"
+            android:text="@string/update"
+            android:textColor="@color/btn_update_text"
+            android:textSize="14sp"
+            android:textAllCaps="false"
+            android:fontFamily="@font/ys_display_medium"
+            android:gravity="center" />
+
+
+
+    </LinearLayout>
 
 </RelativeLayout>
