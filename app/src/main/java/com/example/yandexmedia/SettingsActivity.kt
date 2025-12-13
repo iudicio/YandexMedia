@@ -23,20 +23,16 @@ class SettingsActivity : AppCompatActivity() {
 
         val app = application as Appp
 
-        // Устанавливаем начальное состояние переключателя
         darkSwitch.isChecked = app.darkTheme
 
-        // Назад
         backButton.setOnClickListener {
             onBackPressedDispatcher.onBackPressed()
         }
 
-        // Переключение темы
         darkSwitch.setOnCheckedChangeListener { _, checked ->
             app.switchTheme(checked)
         }
 
-        // Поделиться приложением
         shareApp.setOnClickListener {
             val shareIntent = Intent(Intent.ACTION_SEND).apply {
                 type = "text/plain"
@@ -48,7 +44,6 @@ class SettingsActivity : AppCompatActivity() {
             startActivity(Intent.createChooser(shareIntent, getString(R.string.share_via)))
         }
 
-        // Написать разработчикам
         support.setOnClickListener {
             val emailIntent = Intent(Intent.ACTION_SEND).apply {
                 type = "message/rfc822"
@@ -73,7 +68,6 @@ class SettingsActivity : AppCompatActivity() {
             }
         }
 
-        // Пользовательское соглашение
         userAgreement.setOnClickListener {
             val browserIntent = Intent(Intent.ACTION_VIEW).apply {
                 data = Uri.parse(getString(R.string.offer_link))

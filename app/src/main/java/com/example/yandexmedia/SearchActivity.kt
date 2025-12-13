@@ -157,7 +157,6 @@ class SearchActivity : AppCompatActivity() {
         })
     }
 
-    /** история */
 
     private fun showHistoryIfNeeded() {
         val history = searchHistory.getHistory()
@@ -177,8 +176,6 @@ class SearchActivity : AppCompatActivity() {
         }
     }
 
-    /** поиск */
-
     private fun searchTracks(query: String) {
         ioScope.launch {
             try {
@@ -194,7 +191,6 @@ class SearchActivity : AppCompatActivity() {
                     val response = connection.inputStream
                         .bufferedReader()
                         .use { it.readText() }
-
                     val trackList = parseTracks(response)
 
                     withContext(Dispatchers.Main) {
@@ -208,6 +204,7 @@ class SearchActivity : AppCompatActivity() {
                     }
                 }
                 connection.disconnect()
+
             } catch (e: UnknownHostException) {
                 withContext(Dispatchers.Main) { showNetworkError() }
             } catch (e: Exception) {
