@@ -10,6 +10,7 @@
     <color name="color_back_ground">#FFFFFF</color>
     <color name="color_white_text">#000000</color>
     <color name="color_track_gray">#AEAFB4</color>
+    <color name="color_primary_white">#FFFFFF</color> <!-- Фон главного экрана -->
     <color name="color_holder">#FFFFFF</color>
     <!-- Акцент -->
     <color name="color_accent">#FF03DAC5</color>
@@ -23,6 +24,7 @@
     <color name="white">#FFFFFFFF</color>
     <color name="btn_update">#000000</color>        <!-- чёрная кнопка -->
     <color name="btn_update_text">#FFFFFF</color> <!-- белый текст -->
+    <color name="color_playlist">#AEAFB4</color> <!-- белый текст -->
 
 
 </resources>

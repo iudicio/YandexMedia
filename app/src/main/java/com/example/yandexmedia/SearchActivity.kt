@@ -20,6 +20,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 import java.net.UnknownHostException
+import android.content.Intent
 
 class SearchActivity : AppCompatActivity() {
 
@@ -44,7 +45,14 @@ class SearchActivity : AppCompatActivity() {
     private var searchQueryText: String = ""
 
     private val ioScope = CoroutineScope(Dispatchers.IO)
-
+    companion object {
+        const val EXTRA_TRACK = "EXTRA_TRACK"
+    }
+    private fun openPlayer(track: Track) {
+        val intent = Intent(this, PlayerActivity::class.java)
+        intent.putExtra(EXTRA_TRACK, track)
+        startActivity(intent)
+    }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_search)
@@ -86,21 +94,22 @@ class SearchActivity : AppCompatActivity() {
 
         historyRecyclerView.layoutManager = LinearLayoutManager(this)
         historyAdapter = TrackAdapter(arrayListOf()) { track ->
-            searchHistory.addTrack(track)
-            showHistoryIfNeeded()
-            // TODO: переход на экран трека
+            openPlayer(track)
         }
+
         historyRecyclerView.adapter = historyAdapter
     }
+
 
     private fun initSearchList() {
         searchRecyclerView.layoutManager = LinearLayoutManager(this)
         searchAdapter = TrackAdapter(arrayListOf()) { track ->
             searchHistory.addTrack(track)
-            // TODO: переход на экран трека
+            openPlayer(track)
         }
         searchRecyclerView.adapter = searchAdapter
     }
+
 
     private fun initListeners() {
 
@@ -180,7 +189,8 @@ class SearchActivity : AppCompatActivity() {
         ioScope.launch {
             try {
                 val encodedQuery = URLEncoder.encode(query, "UTF-8")
-                val url = URL("https://itunes.apple.com/search?entity=song&term=$encodedQuery")
+                val url = URL("https://itunes.apple.com/search?entity=song&attribute=songTerm&limit=25&term=$encodedQuery")
+
                 val connection = url.openConnection() as HttpURLConnection
                 connection.requestMethod = "GET"
                 connection.connectTimeout = 1000
@@ -192,7 +202,6 @@ class SearchActivity : AppCompatActivity() {
                         .bufferedReader()
                         .use { it.readText() }
                     val trackList = parseTracks(response)
-
                     withContext(Dispatchers.Main) {
                         historyContainer.isVisible = false
                         searchAdapter.updateTracks(trackList)
@@ -221,22 +230,39 @@ class SearchActivity : AppCompatActivity() {
 
         for (i in 0 until results.length()) {
             val trackObj = results.getJSONObject(i)
+
             val trackName = trackObj.optString("trackName", "Без названия")
             val artistName = trackObj.optString("artistName", "Неизвестен")
             val trackTimeMillis = trackObj.optLong("trackTimeMillis", 0)
             val artworkUrl100 = trackObj.optString("artworkUrl100", "")
 
+            val collectionName = trackObj.optString("collectionName", "")
+            val releaseDate = trackObj.optString("releaseDate", "") // ISO строка
+            val primaryGenreName = trackObj.optString("primaryGenreName", "")
+            val country = trackObj.optString("country", "")
+
+            val trackId = trackObj.optLong("trackId", 0)
+
             resultList.add(
                 Track(
+                    trackId = trackId,
                     trackName = trackName,
                     artistName = artistName,
                     trackTime = millisToTime(trackTimeMillis),
-                    artworkUrl100 = artworkUrl100
+                    artworkUrl100 = artworkUrl100,
+                    collectionName = collectionName,
+                    releaseDate = releaseDate,
+                    primaryGenreName = primaryGenreName,
+                    country = country,
+                    trackTimeMillis = trackTimeMillis
                 )
             )
+
+
         }
         return resultList
     }
+
 
     private fun millisToTime(ms: Long): String {
         val totalSeconds = ms / 1000

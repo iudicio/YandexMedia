@@ -58,18 +58,34 @@ class SearchHistory(private val sharedPreferences: SharedPreferences) {
 
     private fun trackToJson(track: Track): JSONObject {
         val obj = JSONObject()
+        obj.put("trackId", track.trackId)
         obj.put("trackName", track.trackName)
         obj.put("artistName", track.artistName)
         obj.put("trackTime", track.trackTime)
         obj.put("artworkUrl100", track.artworkUrl100)
+
+        obj.put("collectionName", track.collectionName)
+        obj.put("releaseDate", track.releaseDate)
+        obj.put("primaryGenreName", track.primaryGenreName)
+        obj.put("country", track.country)
+        obj.put("trackTimeMillis", track.trackTimeMillis)
+
         return obj
     }
 
     private fun jsonToTrack(obj: JSONObject): Track {
-        val trackName = obj.optString("trackName", "Без названия")
-        val artistName = obj.optString("artistName", "Неизвестен")
-        val trackTime = obj.optString("trackTime", "0:00")
-        val artworkUrl100 = obj.optString("artworkUrl100", "")
-        return Track(trackName, artistName, trackTime, artworkUrl100)
+        return Track(
+            trackId = obj.optLong("trackId", 0),
+            trackName = obj.optString("trackName", "Без названия"),
+            artistName = obj.optString("artistName", "Неизвестен"),
+            trackTime = obj.optString("trackTime", "0:00"),
+            artworkUrl100 = obj.optString("artworkUrl100", ""),
+            collectionName = obj.optString("collectionName", null),
+            releaseDate = obj.optString("releaseDate", null),
+            primaryGenreName = obj.optString("primaryGenreName", null),
+            country = obj.optString("country", null),
+            trackTimeMillis = if (obj.has("trackTimeMillis")) obj.optLong("trackTimeMillis") else null
+        )
     }
+
 }
