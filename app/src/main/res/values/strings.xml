@@ -51,5 +51,17 @@
     <string name="network_error2">Загрузка не удалась. Проверьте подключение к интернету </string>
     <string name="update">Обновить</string>
     <string name="history">Вы искали</string>
+    <string name="back">Назад</string>
+    <string name="cover">cover</string>
+    <string name="add_to_playlist">Добавить музыку</string>
+    <string name="play">Играть</string>
+    <string name="favorite">Избранное</string>
+    <string name="length">Длительность</string>
+    <string name="album">Альбом</string>
+    <string name="year">Год</string>
+    <string name="genre">Жанр</string>
+    <string name="country">Страна</string>
+
+
 
 </resources>
