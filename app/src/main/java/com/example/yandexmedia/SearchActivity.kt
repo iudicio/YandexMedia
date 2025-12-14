@@ -35,7 +35,6 @@ class SearchActivity : AppCompatActivity() {
 
     private lateinit var historyContainer: LinearLayout
     private lateinit var historyRecyclerView: RecyclerView
-    private lateinit var clearHistoryButton: Button
     private lateinit var historyAdapter: TrackAdapter
     private lateinit var searchHistory: SearchHistory
 
@@ -83,32 +82,48 @@ class SearchActivity : AppCompatActivity() {
 
         historyContainer = findViewById(R.id.historyContainer)
         historyRecyclerView = findViewById(R.id.historyRecyclerView)
-        clearHistoryButton = findViewById(R.id.clearHistoryButton)
 
         backButton.setOnClickListener { finish() }
     }
+
 
     private fun initHistory() {
         val prefs = getSharedPreferences("search_history_prefs", Context.MODE_PRIVATE)
         searchHistory = SearchHistory(prefs)
 
         historyRecyclerView.layoutManager = LinearLayoutManager(this)
-        historyAdapter = TrackAdapter(arrayListOf()) { track ->
-            openPlayer(track)
-        }
+
+        historyAdapter = TrackAdapter(
+            arrayListOf(),
+            onTrackClick = { track ->
+                openPlayer(track)
+            },
+            onClearHistoryClick = {
+                searchHistory.clear()
+                historyAdapter.updateTracks(emptyList())
+                historyContainer.isVisible = false
+            },
+            showFooter = true
+        )
 
         historyRecyclerView.adapter = historyAdapter
     }
 
 
+
     private fun initSearchList() {
         searchRecyclerView.layoutManager = LinearLayoutManager(this)
-        searchAdapter = TrackAdapter(arrayListOf()) { track ->
-            searchHistory.addTrack(track)
-            openPlayer(track)
-        }
+        searchAdapter = TrackAdapter(
+            arrayListOf(),
+            onTrackClick = { track ->
+                searchHistory.addTrack(track)
+                openPlayer(track)
+            },
+            showFooter = false
+        )
         searchRecyclerView.adapter = searchAdapter
     }
+
 
 
     private fun initListeners() {
@@ -118,12 +133,6 @@ class SearchActivity : AppCompatActivity() {
             hideKeyboard(searchEditText)
             searchAdapter.updateTracks(emptyList())
             showHistoryIfNeeded()
-        }
-
-        clearHistoryButton.setOnClickListener {
-            searchHistory.clear()
-            historyAdapter.updateTracks(emptyList())
-            historyContainer.isVisible = false
         }
 
         retryButton.setOnClickListener {
