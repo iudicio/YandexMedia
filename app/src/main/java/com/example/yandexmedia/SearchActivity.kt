@@ -270,12 +270,12 @@ class SearchActivity : AppCompatActivity() {
             val artistName = trackObj.optString("artistName", "Неизвестен")
             val trackTimeMillis = trackObj.optLong("trackTimeMillis", 0)
             val artworkUrl100 = trackObj.optString("artworkUrl100", "")
-            val previewUrl = trackObj.optString("previewUrl", "") // ✅ ВОТ ЭТО ДОБАВЬ
 
             val collectionName = trackObj.optString("collectionName", "")
-            val releaseDate = trackObj.optString("releaseDate", "")
+            val releaseDate = trackObj.optString("releaseDate", "") // ISO строка
             val primaryGenreName = trackObj.optString("primaryGenreName", "")
             val country = trackObj.optString("country", "")
+
             val trackId = trackObj.optLong("trackId", 0)
 
             resultList.add(
@@ -285,7 +285,6 @@ class SearchActivity : AppCompatActivity() {
                     artistName = artistName,
                     trackTime = millisToTime(trackTimeMillis),
                     artworkUrl100 = artworkUrl100,
-                    previewUrl = previewUrl,
                     collectionName = collectionName,
                     releaseDate = releaseDate,
                     primaryGenreName = primaryGenreName,
@@ -293,6 +292,8 @@ class SearchActivity : AppCompatActivity() {
                     trackTimeMillis = trackTimeMillis
                 )
             )
+
+
         }
         return resultList
     }
