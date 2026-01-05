@@ -21,6 +21,10 @@ import java.net.URL
 import java.net.URLEncoder
 import java.net.UnknownHostException
 import android.content.Intent
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+
 
 class SearchActivity : AppCompatActivity() {
 
@@ -40,12 +44,18 @@ class SearchActivity : AppCompatActivity() {
 
     private lateinit var searchEditText: EditText
     private lateinit var clearButton: ImageView
+    private lateinit var progressBar: ProgressBar
 
     private var searchQueryText: String = ""
 
     private val ioScope = CoroutineScope(Dispatchers.IO)
+    private var searchJob: Job? = null
+    private var isClickAllowed = true
+
     companion object {
         const val EXTRA_TRACK = "EXTRA_TRACK"
+        private const val SEARCH_DEBOUNCE_DELAY = 500L
+        private const val CLICK_DEBOUNCE_DELAY = 1000L
     }
     private fun openPlayer(track: Track) {
         val intent = Intent(this, PlayerActivity::class.java)
@@ -64,9 +74,23 @@ class SearchActivity : AppCompatActivity() {
         searchEditText.requestFocus()
         showHistoryIfNeeded()
     }
+    private fun showLoading() {
+        progressBar.isVisible = true
+
+        // скрываем всё, что может мешать
+        searchRecyclerView.isVisible = false
+        placeholderLayout.isVisible = false
+        networkErrorLayout.isVisible = false
+        historyContainer.isVisible = false
+    }
+
+    private fun hideLoading() {
+        progressBar.isVisible = false
+    }
 
     private fun initViews() {
         val backButton = findViewById<ImageView>(R.id.backButton)
+        progressBar = findViewById(R.id.progressBar)
 
         searchEditText = findViewById(R.id.searchEditText)
         clearButton = findViewById(R.id.clearButton)
@@ -195,6 +219,8 @@ class SearchActivity : AppCompatActivity() {
     }
 
     private fun searchTracks(query: String) {
+        runOnUiThread { showLoading() }
+
         ioScope.launch {
             try {
                 val encodedQuery = URLEncoder.encode(query, "UTF-8")
@@ -207,10 +233,9 @@ class SearchActivity : AppCompatActivity() {
 
                 val responseCode = connection.responseCode
                 if (responseCode == HttpURLConnection.HTTP_OK) {
-                    val response = connection.inputStream
-                        .bufferedReader()
-                        .use { it.readText() }
+                    val response = connection.inputStream.bufferedReader().use { it.readText() }
                     val trackList = parseTracks(response)
+
                     withContext(Dispatchers.Main) {
                         historyContainer.isVisible = false
                         searchAdapter.updateTracks(trackList)
@@ -232,6 +257,7 @@ class SearchActivity : AppCompatActivity() {
         }
     }
 
+
     private fun parseTracks(json: String): List<Track> {
         val resultList = mutableListOf<Track>()
         val jsonObject = JSONObject(json)
@@ -244,12 +270,12 @@ class SearchActivity : AppCompatActivity() {
             val artistName = trackObj.optString("artistName", "Неизвестен")
             val trackTimeMillis = trackObj.optLong("trackTimeMillis", 0)
             val artworkUrl100 = trackObj.optString("artworkUrl100", "")
+            val previewUrl = trackObj.optString("previewUrl", "") // ✅ ВОТ ЭТО ДОБАВЬ
 
             val collectionName = trackObj.optString("collectionName", "")
-            val releaseDate = trackObj.optString("releaseDate", "") // ISO строка
+            val releaseDate = trackObj.optString("releaseDate", "")
             val primaryGenreName = trackObj.optString("primaryGenreName", "")
             val country = trackObj.optString("country", "")
-
             val trackId = trackObj.optLong("trackId", 0)
 
             resultList.add(
@@ -259,6 +285,7 @@ class SearchActivity : AppCompatActivity() {
                     artistName = artistName,
                     trackTime = millisToTime(trackTimeMillis),
                     artworkUrl100 = artworkUrl100,
+                    previewUrl = previewUrl,
                     collectionName = collectionName,
                     releaseDate = releaseDate,
                     primaryGenreName = primaryGenreName,
@@ -266,8 +293,6 @@ class SearchActivity : AppCompatActivity() {
                     trackTimeMillis = trackTimeMillis
                 )
             )
-
-
         }
         return resultList
     }
@@ -288,12 +313,14 @@ class SearchActivity : AppCompatActivity() {
     }
 
     private fun showResultState(isEmpty: Boolean) {
+        hideLoading()
         searchRecyclerView.isVisible = !isEmpty
         placeholderLayout.isVisible = isEmpty
         networkErrorLayout.isVisible = false
     }
 
     private fun showNetworkError() {
+        hideLoading()
         searchRecyclerView.isVisible = false
         placeholderLayout.isVisible = false
         networkErrorLayout.isVisible = true
@@ -301,9 +328,11 @@ class SearchActivity : AppCompatActivity() {
     }
 
     private fun showDefaultState() {
+        hideLoading()
         searchRecyclerView.isVisible = false
         placeholderLayout.isVisible = false
         networkErrorLayout.isVisible = false
         historyContainer.isVisible = false
     }
+
 }

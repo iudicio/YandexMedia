@@ -15,17 +15,27 @@ class SearchHistory(private val sharedPreferences: SharedPreferences) {
         val json = sharedPreferences.getString(KEY_HISTORY, null) ?: return emptyList()
         val result = mutableListOf<Track>()
         val jsonArray = JSONArray(json)
+
         for (i in 0 until jsonArray.length()) {
             val obj = jsonArray.getJSONObject(i)
-            result.add(jsonToTrack(obj))
+            val track = jsonToTrack(obj)
+
+            if (track.previewUrl.isNotBlank()) {
+                result.add(track)
+            }
         }
+
+        if (result.size != jsonArray.length()) {
+            saveHistory(result)
+        }
+
         return result
     }
+
 
     fun addTrack(track: Track) {
         val list = getHistory().toMutableList()
 
-        // убираем дубликат (если уже был в истории)
         list.removeAll {
             it.trackName == track.trackName &&
                     it.artistName == track.artistName &&
@@ -33,10 +43,8 @@ class SearchHistory(private val sharedPreferences: SharedPreferences) {
                     it.artworkUrl100 == track.artworkUrl100
         }
 
-        // новый (или обновлённый) трек в начало
         list.add(0, track)
 
-        // обрезаем до 10 элементов
         if (list.size > MAX_SIZE) {
             list.subList(MAX_SIZE, list.size).clear()
         }
@@ -57,21 +65,22 @@ class SearchHistory(private val sharedPreferences: SharedPreferences) {
     }
 
     private fun trackToJson(track: Track): JSONObject {
-        val obj = JSONObject()
-        obj.put("trackId", track.trackId)
-        obj.put("trackName", track.trackName)
-        obj.put("artistName", track.artistName)
-        obj.put("trackTime", track.trackTime)
-        obj.put("artworkUrl100", track.artworkUrl100)
+        return JSONObject().apply {
+            put("trackId", track.trackId)
+            put("trackName", track.trackName)
+            put("artistName", track.artistName)
+            put("trackTime", track.trackTime)
+            put("artworkUrl100", track.artworkUrl100)
+            put("previewUrl", track.previewUrl)
 
-        obj.put("collectionName", track.collectionName)
-        obj.put("releaseDate", track.releaseDate)
-        obj.put("primaryGenreName", track.primaryGenreName)
-        obj.put("country", track.country)
-        obj.put("trackTimeMillis", track.trackTimeMillis)
-
-        return obj
+            put("collectionName", track.collectionName)
+            put("releaseDate", track.releaseDate)
+            put("primaryGenreName", track.primaryGenreName)
+            put("country", track.country)
+            put("trackTimeMillis", track.trackTimeMillis)
+        }
     }
+
 
     private fun jsonToTrack(obj: JSONObject): Track {
         return Track(
@@ -80,6 +89,7 @@ class SearchHistory(private val sharedPreferences: SharedPreferences) {
             artistName = obj.optString("artistName", "Неизвестен"),
             trackTime = obj.optString("trackTime", "0:00"),
             artworkUrl100 = obj.optString("artworkUrl100", ""),
+            previewUrl = obj.optString("previewUrl", ""),
             collectionName = obj.optString("collectionName", null),
             releaseDate = obj.optString("releaseDate", null),
             primaryGenreName = obj.optString("primaryGenreName", null),
@@ -87,5 +97,6 @@ class SearchHistory(private val sharedPreferences: SharedPreferences) {
             trackTimeMillis = if (obj.has("trackTimeMillis")) obj.optLong("trackTimeMillis") else null
         )
     }
+
 
 }

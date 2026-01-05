@@ -1,27 +1,45 @@
 package com.example.yandexmedia
 
+import android.media.MediaPlayer
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import com.bumptech.glide.Glide
-import kotlinx.coroutines.*
+import android.widget.Toast
 
 class PlayerActivity : AppCompatActivity() {
-    private var isPlaying = false
+
     private var isFavorite = false
     private var isInPlaylist = false
+
+    private var mediaPlayer: MediaPlayer? = null
+
+    // Чтобы выполнить критерии "с начала, если не начинали/уже доиграл"
+    private var isPlayerPrepared = false
+    private var isTrackCompleted = false
+
+    private val handler = Handler(Looper.getMainLooper())
+    private val updatePositionRunnable = object : Runnable {
+        override fun run() {
+            val currentMs = mediaPlayer?.currentPosition ?: 0
+            playbackPositionTextView?.text = formatTime(currentMs)
+            handler.postDelayed(this, 300L)
+        }
+    }
+
+    private var playbackPositionTextView: TextView? = null
+    private var playButton: ImageButton? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.fragment_player)
 
         val track = intent.getParcelableExtra<Track>(SearchActivity.EXTRA_TRACK)
-            ?: run {
-                finish()
-                return
-            }
+            ?: run { finish(); return }
 
         val backButton: ImageButton = findViewById(R.id.backButton)
         val coverImage: ImageView = findViewById(R.id.coverImage)
@@ -32,29 +50,12 @@ class PlayerActivity : AppCompatActivity() {
         val yearValue: TextView = findViewById(R.id.yearValue)
         val genreValue: TextView = findViewById(R.id.genreValue)
         val countryValue: TextView = findViewById(R.id.countryValue)
-        val playButton: ImageButton = findViewById(R.id.playButton)
+
+        playButton = findViewById(R.id.playButton)
+        playbackPositionTextView = findViewById(R.id.playbackPosition)
+
         val favoriteButton: ImageButton = findViewById(R.id.favoriteButton)
         val addToPlaylistButton: ImageButton = findViewById(R.id.addToPlaylistButton)
-        playButton.setOnClickListener {
-            isPlaying = !isPlaying
-
-            if (isPlaying) {
-                playButton.setImageResource(R.drawable.play)
-            } else {
-                playButton.setImageResource(R.drawable.stop)
-            }
-        }
-        favoriteButton.setOnClickListener {
-            isFavorite = !isFavorite
-
-            if (isFavorite) {
-                favoriteButton.setImageResource(R.drawable.like)
-            } else {
-                favoriteButton.setImageResource(R.drawable.favorite)
-            }
-        }
-
-        backButton.setOnClickListener { onBackPressedDispatcher.onBackPressed() }
 
         trackName.text = track.trackName
         artistName.text = track.artistName
@@ -69,5 +70,153 @@ class PlayerActivity : AppCompatActivity() {
             .placeholder(R.drawable.ic_placeholder)
             .error(R.drawable.ic_placeholder)
             .into(coverImage)
+
+        setPlayButtonState(isPlaying = false)
+        playbackPositionTextView?.text = "00:00"
+
+        val previewUrl = track.previewUrl
+
+        if (previewUrl.isBlank()) {
+            playButton?.isEnabled = false
+            playbackPositionTextView?.text = "00:00"
+            playButton?.setImageResource(R.drawable.play)
+
+        } else {
+            preparePlayer(previewUrl)
+        }
+
+
+        playButton?.setOnClickListener {
+            onPlayPauseClicked()
+        }
+
+        favoriteButton.setOnClickListener {
+            isFavorite = !isFavorite
+            if (isFavorite) {
+                favoriteButton.setImageResource(R.drawable.like)
+            } else {
+                favoriteButton.setImageResource(R.drawable.favorite)
+            }
+        }
+
+        backButton.setOnClickListener {
+            stopAndReleasePlayer()
+            onBackPressedDispatcher.onBackPressed()
+        }
+    }
+
+    private fun preparePlayer(url: String) {
+        releasePlayerOnly()
+
+        mediaPlayer = MediaPlayer().apply {
+            setDataSource(url)
+            setOnPreparedListener {
+                isPlayerPrepared = true
+                // ничего не стартуем автоматически — ждём нажатия Play
+            }
+            setOnCompletionListener {
+                // ✅ критерий: когда отрывок заканчивается → Play, стоп обновления, 00:00
+                isTrackCompleted = true
+                stopProgressUpdates()
+                playbackPositionTextView?.text = "00:00"
+                setPlayButtonState(isPlaying = false)
+            }
+            prepareAsync()
+        }
+    }
+
+    private fun onPlayPauseClicked() {
+        val player = mediaPlayer ?: return
+
+        if (!isPlayerPrepared) {
+            // Ещё готовится — можно просто игнорировать нажатие
+            return
+        }
+
+        if (player.isPlaying) {
+            // Pause
+            player.pause()
+            stopProgressUpdates()
+            setPlayButtonState(isPlaying = false)
+        } else {
+            // Play
+            // ✅ если не начинали / уже доиграл — стартуем с начала
+            if (isTrackCompleted) {
+                player.seekTo(0)
+                playbackPositionTextView?.text = "00:00"
+                isTrackCompleted = false
+            }
+            player.start()
+            setPlayButtonState(isPlaying = true)
+            startProgressUpdates()
+        }
+    }
+
+    private fun startProgressUpdates() {
+        handler.removeCallbacks(updatePositionRunnable)
+        handler.post(updatePositionRunnable)
+    }
+
+    private fun stopProgressUpdates() {
+        handler.removeCallbacks(updatePositionRunnable)
+    }
+
+    private fun setPlayButtonState(isPlaying: Boolean) {
+        // ✅ По требованиям:
+        // - если играет → показываем "Пауза"
+        // - если не играет → показываем "Играть"
+        //
+        // У вас сейчас drawables называются play/stop.
+        // Проверьте: какой из них у вас реально "пауза".
+        // Я исхожу из того, что:
+        // - R.drawable.play = иконка Play
+        // - R.drawable.stop = иконка Pause (как у вас в макете)
+        playButton?.setImageResource(
+            if (isPlaying) R.drawable.stop else R.drawable.play
+        )
+    }
+
+    private fun formatTime(ms: Int): String {
+        val totalSeconds = ms / 1000
+        val minutes = totalSeconds / 60
+        val seconds = totalSeconds % 60
+        return String.format("%02d:%02d", minutes, seconds)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // ✅ критерий: при уходе приложения в фон — пауза, кнопка Play, стоп обновления
+        val player = mediaPlayer
+        if (player != null && player.isPlaying) {
+            player.pause()
+            stopProgressUpdates()
+            setPlayButtonState(isPlaying = false)
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        stopAndReleasePlayer()
+    }
+
+    private fun stopAndReleasePlayer() {
+        stopProgressUpdates()
+        mediaPlayer?.let { player ->
+            try {
+                if (player.isPlaying) player.stop()
+            } catch (_: IllegalStateException) {
+                // ignore
+            }
+        }
+        releasePlayerOnly()
+        playbackPositionTextView?.text = "00:00"
+        setPlayButtonState(isPlaying = false)
+    }
+
+    private fun releasePlayerOnly() {
+        mediaPlayer?.release()
+        mediaPlayer = null
+        isPlayerPrepared = false
+        isTrackCompleted = false
     }
 }
