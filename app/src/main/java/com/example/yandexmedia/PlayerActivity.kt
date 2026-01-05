@@ -9,16 +9,13 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import com.bumptech.glide.Glide
-import android.widget.Toast
 
 class PlayerActivity : AppCompatActivity() {
 
     private var isFavorite = false
-    private var isInPlaylist = false
 
     private var mediaPlayer: MediaPlayer? = null
 
-    // Чтобы выполнить критерии "с начала, если не начинали/уже доиграл"
     private var isPlayerPrepared = false
     private var isTrackCompleted = false
 
@@ -112,10 +109,8 @@ class PlayerActivity : AppCompatActivity() {
             setDataSource(url)
             setOnPreparedListener {
                 isPlayerPrepared = true
-                // ничего не стартуем автоматически — ждём нажатия Play
             }
             setOnCompletionListener {
-                // ✅ критерий: когда отрывок заканчивается → Play, стоп обновления, 00:00
                 isTrackCompleted = true
                 stopProgressUpdates()
                 playbackPositionTextView?.text = "00:00"
@@ -134,13 +129,10 @@ class PlayerActivity : AppCompatActivity() {
         }
 
         if (player.isPlaying) {
-            // Pause
             player.pause()
             stopProgressUpdates()
             setPlayButtonState(isPlaying = false)
         } else {
-            // Play
-            // ✅ если не начинали / уже доиграл — стартуем с начала
             if (isTrackCompleted) {
                 player.seekTo(0)
                 playbackPositionTextView?.text = "00:00"
@@ -162,15 +154,6 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     private fun setPlayButtonState(isPlaying: Boolean) {
-        // ✅ По требованиям:
-        // - если играет → показываем "Пауза"
-        // - если не играет → показываем "Играть"
-        //
-        // У вас сейчас drawables называются play/stop.
-        // Проверьте: какой из них у вас реально "пауза".
-        // Я исхожу из того, что:
-        // - R.drawable.play = иконка Play
-        // - R.drawable.stop = иконка Pause (как у вас в макете)
         playButton?.setImageResource(
             if (isPlaying) R.drawable.stop else R.drawable.play
         )
@@ -185,7 +168,6 @@ class PlayerActivity : AppCompatActivity() {
 
     override fun onStop() {
         super.onStop()
-        // ✅ критерий: при уходе приложения в фон — пауза, кнопка Play, стоп обновления
         val player = mediaPlayer
         if (player != null && player.isPlaying) {
             player.pause()
@@ -205,7 +187,6 @@ class PlayerActivity : AppCompatActivity() {
             try {
                 if (player.isPlaying) player.stop()
             } catch (_: IllegalStateException) {
-                // ignore
             }
         }
         releasePlayerOnly()
