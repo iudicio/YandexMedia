@@ -120,7 +120,9 @@ class SearchActivity : AppCompatActivity() {
         historyAdapter = TrackAdapter(
             arrayListOf(),
             onTrackClick = { track ->
-                openPlayer(track)
+                if (clickDebounce()) {
+                    openPlayer(track)
+                }
             },
             onClearHistoryClick = {
                 searchHistory.clear()
@@ -129,6 +131,7 @@ class SearchActivity : AppCompatActivity() {
             },
             showFooter = true
         )
+
 
         historyRecyclerView.adapter = historyAdapter
     }
@@ -140,8 +143,10 @@ class SearchActivity : AppCompatActivity() {
         searchAdapter = TrackAdapter(
             arrayListOf(),
             onTrackClick = { track ->
-                searchHistory.addTrack(track)
-                openPlayer(track)
+                if (clickDebounce()) {
+                    searchHistory.addTrack(track)
+                    openPlayer(track)
+                }
             },
             showFooter = false
         )
@@ -199,6 +204,17 @@ class SearchActivity : AppCompatActivity() {
         })
     }
 
+    private fun clickDebounce(): Boolean {
+        val current = isClickAllowed
+        if (current) {
+            isClickAllowed = false
+            lifecycleScope.launch {
+                delay(CLICK_DEBOUNCE_DELAY)
+                isClickAllowed = true
+            }
+        }
+        return current
+    }
 
     private fun showHistoryIfNeeded() {
         val history = searchHistory.getHistory()
