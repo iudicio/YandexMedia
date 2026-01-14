@@ -7,7 +7,7 @@
     android:orientation="vertical"
     android:padding="16dp"
     android:background="@color/color_primary"
-    tools:context=".MainActivity">
+    tools:context=".ui.MainActivity">
 
     <!-- Заголовок -->
     <TextView

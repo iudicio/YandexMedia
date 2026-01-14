@@ -1,4 +1,4 @@
-package com.example.yandexmedia
+package com.example.yandexmedia.ui
 
 import android.content.Context
 import android.os.Bundle
@@ -22,6 +22,10 @@ import java.net.URLEncoder
 import java.net.UnknownHostException
 import android.content.Intent
 import androidx.lifecycle.lifecycleScope
+import com.example.yandexmedia.R
+import com.example.yandexmedia.action.SearchHistory
+import com.example.yandexmedia.adapter.TrackAdapter
+import com.example.yandexmedia.data.Track
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 

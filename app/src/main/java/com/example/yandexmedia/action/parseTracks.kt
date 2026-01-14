@@ -1,6 +1,7 @@
-package com.example.yandexmedia
+package com.example.yandexmedia.action
 
 import android.content.SharedPreferences
+import com.example.yandexmedia.data.Track
 import org.json.JSONArray
 import org.json.JSONObject
 

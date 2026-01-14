@@ -1,4 +1,4 @@
-package com.example.yandexmedia
+package com.example.yandexmedia.ui
 
 import android.content.Intent
 import android.net.Uri
@@ -7,6 +7,8 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import com.example.yandexmedia.application.Appp
+import com.example.yandexmedia.R
 import com.google.android.material.switchmaterial.SwitchMaterial
 
 class SettingsActivity : AppCompatActivity() {

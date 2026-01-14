@@ -1,4 +1,4 @@
-package com.example.yandexmedia   // ОБЯЗАТЕЛЬНО этот же пакет
+package com.example.yandexmedia.application
 
 import android.app.Application
 import androidx.appcompat.app.AppCompatDelegate
