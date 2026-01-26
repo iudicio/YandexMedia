@@ -1,4 +1,4 @@
-package com.example.yandexmedia.ui.theme
+package com.example.yandexmedia.presentation.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

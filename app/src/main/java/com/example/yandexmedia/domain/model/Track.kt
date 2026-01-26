@@ -1,4 +1,4 @@
-package com.example.yandexmedia
+package com.example.yandexmedia.domain.model
 
 import android.os.Parcelable
 import kotlinx.parcelize.Parcelize

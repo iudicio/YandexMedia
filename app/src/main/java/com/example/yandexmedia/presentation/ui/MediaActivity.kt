@@ -1,4 +1,4 @@
-package com.example.yandexmedia
+package com.example.yandexmedia.presentation.ui
 
 import android.animation.ObjectAnimator
 import android.content.Intent
@@ -8,6 +8,7 @@ import android.view.View
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import com.example.yandexmedia.R
 import com.google.android.material.bottomnavigation.BottomNavigationView
 
 class MediaActivity : AppCompatActivity() {

@@ -3,7 +3,7 @@ package com.example.yandexmedia   // ОБЯЗАТЕЛЬНО этот же пак
 import android.app.Application
 import androidx.appcompat.app.AppCompatDelegate
 
-class Appp : Application() {
+class SettingsApp : Application() {
 
     var darkTheme = false
         private set

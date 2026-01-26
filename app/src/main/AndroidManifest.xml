@@ -16,22 +16,22 @@
         android:theme="@style/Theme.YandexMedia"
         tools:targetApi="31">
         <activity
-            android:name=".PlayerActivity"
+            android:name=".presentation.ui.PlayerActivity"
             android:theme="@style/Theme.YandexMedia"/>
         <activity
-            android:name=".SearchActivity"
+            android:name=".presentation.ui.SearchActivity"
             android:theme="@style/Theme.YandexMedia"/>
 
         <activity
-            android:name=".SettingsActivity"
+            android:name=".presentation.ui.SettingsActivity"
             android:theme="@style/Theme.YandexMedia" />
 
         <activity
-            android:name=".MediaActivity"
+            android:name=".presentation.ui.MediaActivity"
             android:theme="@style/Theme.YandexMedia" />
 
         <activity
-            android:name=".MainActivity"
+            android:name=".presentation.ui.MainActivity"
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.YandexMedia">

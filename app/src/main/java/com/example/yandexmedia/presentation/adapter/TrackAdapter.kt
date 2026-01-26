@@ -1,4 +1,4 @@
-package com.example.yandexmedia
+package com.example.yandexmedia.presentation.adapter
 
 import android.view.LayoutInflater
 import android.view.View
@@ -9,6 +9,8 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.google.android.material.imageview.ShapeableImageView
 import android.widget.Button
+import com.example.yandexmedia.R
+import com.example.yandexmedia.domain.model.Track
 
 
 class TrackAdapter(

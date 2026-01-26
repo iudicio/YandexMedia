@@ -1,4 +1,4 @@
-package com.example.yandexmedia
+package com.example.yandexmedia.presentation.ui
 
 import android.content.Intent
 import android.net.Uri
@@ -7,6 +7,8 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import com.example.yandexmedia.R
+import com.example.yandexmedia.SettingsApp
 import com.google.android.material.switchmaterial.SwitchMaterial
 
 class SettingsActivity : AppCompatActivity() {
@@ -21,7 +23,7 @@ class SettingsActivity : AppCompatActivity() {
         val support = findViewById<LinearLayout>(R.id.support)
         val userAgreement = findViewById<LinearLayout>(R.id.userAgreement)
 
-        val app = application as Appp
+        val app = application as SettingsApp
 
         darkSwitch.isChecked = app.darkTheme
 

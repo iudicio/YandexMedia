@@ -1,9 +1,10 @@
-package com.example.yandexmedia
+package com.example.yandexmedia.presentation.ui
 
 import android.content.Intent
 import android.os.Bundle
 import com.google.android.material.button.MaterialButton
 import androidx.appcompat.app.AppCompatActivity
+import com.example.yandexmedia.R
 
 class MainActivity : AppCompatActivity() {
 
