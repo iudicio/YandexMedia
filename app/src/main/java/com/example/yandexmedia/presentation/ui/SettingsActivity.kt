@@ -17,64 +17,42 @@ class SettingsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
 
-        val backButton = findViewById<ImageView>(R.id.backButton)
-        val darkSwitch = findViewById<SwitchMaterial>(R.id.themeSwitcher)
-        val shareApp = findViewById<LinearLayout>(R.id.shareApp)
-        val support = findViewById<LinearLayout>(R.id.support)
-        val userAgreement = findViewById<LinearLayout>(R.id.userAgreement)
-
         val app = application as SettingsApp
 
-        darkSwitch.isChecked = app.darkTheme
-
-        backButton.setOnClickListener {
-            onBackPressedDispatcher.onBackPressed()
+        findViewById<ImageView>(R.id.backButton).setOnClickListener {
+            finish()
         }
 
-        darkSwitch.setOnCheckedChangeListener { _, checked ->
-            app.switchTheme(checked)
-        }
-
-        shareApp.setOnClickListener {
-            val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                type = "text/plain"
-                putExtra(
-                    Intent.EXTRA_TEXT,
-                    getString(R.string.share_message, getString(R.string.course_link))
-                )
+        findViewById<SwitchMaterial>(R.id.themeSwitcher).apply {
+            isChecked = app.darkTheme
+            setOnCheckedChangeListener { _, checked ->
+                app.switchTheme(checked)
             }
-            startActivity(Intent.createChooser(shareIntent, getString(R.string.share_via)))
         }
 
-        support.setOnClickListener {
-            val emailIntent = Intent(Intent.ACTION_SEND).apply {
-                type = "message/rfc822"
-                putExtra(Intent.EXTRA_EMAIL, arrayOf(getString(R.string.email_to)))
-                putExtra(Intent.EXTRA_SUBJECT, getString(R.string.email_subject))
-                putExtra(Intent.EXTRA_TEXT, getString(R.string.email_body))
-            }
+        findViewById<LinearLayout>(R.id.shareApp).setOnClickListener {
+            startActivity(
+                Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_TEXT, getString(R.string.course_link))
+                }
+            )
+        }
 
+        findViewById<LinearLayout>(R.id.support).setOnClickListener {
             try {
                 startActivity(
-                    Intent.createChooser(
-                        emailIntent,
-                        getString(R.string.email_chooser_title)
-                    )
+                    Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:${getString(R.string.email_to)}"))
                 )
-            } catch (ex: android.content.ActivityNotFoundException) {
-                Toast.makeText(
-                    this,
-                    getString(R.string.no_email_client),
-                    Toast.LENGTH_SHORT
-                ).show()
+            } catch (e: Exception) {
+                Toast.makeText(this, R.string.no_email_client, Toast.LENGTH_SHORT).show()
             }
         }
 
-        userAgreement.setOnClickListener {
-            val browserIntent = Intent(Intent.ACTION_VIEW).apply {
-                data = Uri.parse(getString(R.string.offer_link))
-            }
-            startActivity(browserIntent)
+        findViewById<LinearLayout>(R.id.userAgreement).setOnClickListener {
+            startActivity(
+                Intent(Intent.ACTION_VIEW, Uri.parse(getString(R.string.offer_link)))
+            )
         }
     }
 }

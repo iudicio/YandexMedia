@@ -15,78 +15,81 @@ class MediaActivity : AppCompatActivity() {
 
     private lateinit var tabFavorites: TextView
     private lateinit var tabPlaylists: TextView
-    private lateinit var tabIndicator: View
+    private lateinit var indicator: View
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_media)
 
+        setupBottomNavigation()
+        setupTabs()
+    }
+
+    private fun setupBottomNavigation() {
         val bottomNav = findViewById<BottomNavigationView>(R.id.bottom_navigation)
         bottomNav.selectedItemId = R.id.navigation_library
 
         bottomNav.setOnItemSelectedListener { item ->
             when (item.itemId) {
                 R.id.navigation_search -> {
-                    startActivity(Intent(this, SearchActivity::class.java))
-                    overridePendingTransition(0, 0)
-                    finish()
+                    open(SearchActivity::class.java)
                     true
                 }
-                R.id.navigation_library -> true
                 R.id.navigation_settings -> {
-                    startActivity(Intent(this, SettingsActivity::class.java))
-                    overridePendingTransition(0, 0)
-                    finish()
+                    open(SettingsActivity::class.java)
                     true
                 }
-                else -> false
+                else -> true
             }
         }
+    }
 
+    private fun open(clazz: Class<*>) {
+        startActivity(Intent(this, clazz))
+        overridePendingTransition(0, 0)
+        finish()
+    }
+
+    private fun setupTabs() {
         tabFavorites = findViewById(R.id.tabFavorites)
         tabPlaylists = findViewById(R.id.tabPlaylists)
-        tabIndicator = findViewById(R.id.tabIndicator)
+        indicator = findViewById(R.id.tabIndicator)
 
         tabFavorites.setOnClickListener { selectTab(it as TextView) }
         tabPlaylists.setOnClickListener { selectTab(it as TextView) }
 
         tabFavorites.post {
-            moveIndicatorTo(tabFavorites, animate = false)
-            highlightTab(tabFavorites)
+            moveIndicator(tabFavorites, false)
+            highlight(tabFavorites)
         }
     }
 
-    private fun moveIndicatorTo(tab: TextView, animate: Boolean) {
-        val textPaint: TextPaint = tab.paint
-        val textWidth = textPaint.measureText(tab.text.toString())
-        val textStartX = tab.x + (tab.width - textWidth) / 2f
+    private fun selectTab(tab: TextView) {
+        moveIndicator(tab, true)
+        highlight(tab)
+    }
+
+    private fun moveIndicator(tab: TextView, animate: Boolean) {
+        val paint: TextPaint = tab.paint
+        val width = paint.measureText(tab.text.toString())
+        val x = tab.x + (tab.width - width) / 2f
 
         if (animate) {
-            ObjectAnimator.ofFloat(tabIndicator, "x", textStartX).apply {
-                duration = 250
-                start()
-            }
-            ObjectAnimator.ofInt(tabIndicator, "width", textWidth.toInt()).apply {
-                duration = 250
-                start()
-            }
+            ObjectAnimator.ofFloat(indicator, "x", x).setDuration(250).start()
+            ObjectAnimator.ofInt(indicator, "width", width.toInt()).setDuration(250).start()
         } else {
-            tabIndicator.x = textStartX
-            tabIndicator.layoutParams.width = textWidth.toInt()
-            tabIndicator.requestLayout()
+            indicator.x = x
+            indicator.layoutParams.width = width.toInt()
+            indicator.requestLayout()
         }
     }
 
-    private fun selectTab(selectedTab: TextView) {
-        moveIndicatorTo(selectedTab, animate = true)
-        highlightTab(selectedTab)
-    }
-
-    private fun highlightTab(activeTab: TextView) {
-        val inactiveColor = ContextCompat.getColor(this, R.color.color_gray_dark)
+    private fun highlight(active: TextView) {
+        val inactive = ContextCompat.getColor(this, R.color.color_gray_dark)
         val activeColor = ContextCompat.getColor(this, R.color.color_black)
-        tabFavorites.setTextColor(inactiveColor)
-        tabPlaylists.setTextColor(inactiveColor)
-        activeTab.setTextColor(activeColor)
+
+        tabFavorites.setTextColor(inactive)
+        tabPlaylists.setTextColor(inactive)
+        active.setTextColor(activeColor)
     }
 }
