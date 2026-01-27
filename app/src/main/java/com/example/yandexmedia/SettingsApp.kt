@@ -1,42 +1,28 @@
-package com.example.yandexmedia   // ОБЯЗАТЕЛЬНО этот же пакет
+package com.example.yandexmedia
 
 import android.app.Application
 import androidx.appcompat.app.AppCompatDelegate
+import com.example.yandexmedia.creator.InteractorCreator
+import com.example.yandexmedia.domain.interactor.ThemeInteractor
 
 class SettingsApp : Application() {
 
-    var darkTheme = false
+    lateinit var themeInteractor: ThemeInteractor
         private set
 
     override fun onCreate() {
         super.onCreate()
 
-        val prefs = getSharedPreferences("app_settings", MODE_PRIVATE)
-        darkTheme = prefs.getBoolean("dark_theme", false)
-
-        AppCompatDelegate.setDefaultNightMode(
-            if (darkTheme) {
-                AppCompatDelegate.MODE_NIGHT_YES
-            } else {
-                AppCompatDelegate.MODE_NIGHT_NO
-            }
-        )
+        themeInteractor = InteractorCreator.provideThemeInteractor(this)
+        applyTheme()
     }
 
-    fun switchTheme(darkThemeEnabled: Boolean) {
-        darkTheme = darkThemeEnabled
-
-        val prefs = getSharedPreferences("app_settings", MODE_PRIVATE)
-        prefs.edit()
-            .putBoolean("dark_theme", darkThemeEnabled)
-            .apply()
-
+    fun applyTheme() {
         AppCompatDelegate.setDefaultNightMode(
-            if (darkThemeEnabled) {
+            if (themeInteractor.isDarkTheme())
                 AppCompatDelegate.MODE_NIGHT_YES
-            } else {
+            else
                 AppCompatDelegate.MODE_NIGHT_NO
-            }
         )
     }
 }

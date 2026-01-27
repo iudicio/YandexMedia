@@ -92,7 +92,7 @@
             android:layout_height="85dp"
             android:background="@drawable/round_button_play"
             android:contentDescription="@string/play"
-            android:src="@drawable/stop"
+            android:src="@drawable/play"
             app:layout_constraintTop_toTopOf="@id/addToPlaylistButton"
             app:layout_constraintBottom_toBottomOf="@id/addToPlaylistButton"
             app:layout_constraintStart_toEndOf="@id/addToPlaylistButton"

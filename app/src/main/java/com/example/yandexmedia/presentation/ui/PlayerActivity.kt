@@ -50,6 +50,19 @@ class PlayerActivity : AppCompatActivity() {
 
         findViewById<TextView>(R.id.trackName).text = track.trackName
         findViewById<TextView>(R.id.artistName).text = track.artistName
+        findViewById<TextView>(R.id.lengthValue).text =
+            track.trackTime.ifBlank { "—" }
+
+        findViewById<TextView>(R.id.albumValue).text =
+            track.collectionName?.takeIf { it.isNotBlank() } ?: "—"
+
+        findViewById<TextView>(R.id.genreValue).text =
+            track.primaryGenreName?.takeIf { it.isNotBlank() } ?: "—"
+
+        findViewById<TextView>(R.id.countryValue).text =
+            track.country?.takeIf { it.isNotBlank() } ?: "—"
+        findViewById<TextView>(R.id.yearValue).text =
+            track.releaseDate?.take(4)?.takeIf { it.length == 4 } ?: "—"
 
         Glide.with(this)
             .load(track.getCoverArtwork())
