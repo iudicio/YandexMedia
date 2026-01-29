@@ -1,0 +1,348 @@
+package com.example.yandexmedia.presentation.ui
+
+import android.content.Context
+import android.content.Intent
+import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
+import android.view.View
+import android.view.inputmethod.InputMethodManager
+import android.widget.*
+import com.example.yandexmedia.domain.interactor.SearchInteractor
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.isVisible
+import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.example.yandexmedia.creator.InteractorCreator
+import com.example.yandexmedia.R
+import com.example.yandexmedia.domain.interactor.SearchHistoryInteractor
+import com.example.yandexmedia.domain.model.Track
+import com.example.yandexmedia.presentation.adapter.TrackAdapter
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
+import java.net.URLEncoder
+import java.net.UnknownHostException
+
+class SearchActivity : AppCompatActivity() {
+
+    private lateinit var searchAdapter: TrackAdapter
+    private lateinit var searchRecyclerView: RecyclerView
+
+    private lateinit var placeholderLayout: LinearLayout
+    private lateinit var networkErrorLayout: LinearLayout
+    private lateinit var retryButton: Button
+
+    private lateinit var historyContainer: LinearLayout
+    private lateinit var historyRecyclerView: RecyclerView
+    private lateinit var historyAdapter: TrackAdapter
+    private lateinit var searchInteractor: SearchInteractor
+    private lateinit var searchHistoryInteractor: SearchHistoryInteractor
+
+    private lateinit var searchEditText: EditText
+    private lateinit var clearButton: ImageView
+    private lateinit var progressBar: ProgressBar
+
+    private var searchQueryText: String = ""
+    private var searchJob: Job? = null
+    private var isClickAllowed = true
+
+    companion object {
+        const val EXTRA_TRACK = "EXTRA_TRACK"
+        private const val SEARCH_DEBOUNCE_DELAY = 500L
+        private const val CLICK_DEBOUNCE_DELAY = 1000L
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_search)
+
+        // ✅ ТОЛЬКО ЧЕРЕЗ CREATOR
+        searchHistoryInteractor =
+            InteractorCreator.provideSearchHistoryInteractor(this)
+
+        initViews()
+        initHistory()
+        initSearchList()
+        initListeners()
+
+        searchEditText.requestFocus()
+        showHistoryIfNeeded()
+    }
+
+    private fun openPlayer(track: Track) {
+        val intent = Intent(this, PlayerActivity::class.java)
+        intent.putExtra(EXTRA_TRACK, track)
+        startActivity(intent)
+    }
+
+    private fun initViews() {
+        val backButton = findViewById<ImageView>(R.id.backButton)
+        progressBar = findViewById(R.id.progressBar)
+
+        searchEditText = findViewById(R.id.searchEditText)
+        clearButton = findViewById(R.id.clearButton)
+
+        searchRecyclerView = findViewById(R.id.searchResultsRecyclerView)
+
+        placeholderLayout = findViewById(R.id.placeholderLayout)
+        networkErrorLayout = findViewById(R.id.networkErrorLayout)
+        retryButton = findViewById(R.id.retryButton)
+
+        historyContainer = findViewById(R.id.historyContainer)
+        historyRecyclerView = findViewById(R.id.historyRecyclerView)
+
+        backButton.setOnClickListener { finish() }
+    }
+
+    private fun initHistory() {
+        historyRecyclerView.layoutManager = LinearLayoutManager(this)
+
+        historyAdapter = TrackAdapter(
+            arrayListOf(),
+            onTrackClick = { track ->
+                if (clickDebounce()) openPlayer(track)
+            },
+            onClearHistoryClick = {
+                searchHistoryInteractor.clear()
+                historyAdapter.updateTracks(emptyList())
+                historyContainer.isVisible = false
+            },
+            showFooter = true
+        )
+
+        historyRecyclerView.adapter = historyAdapter
+    }
+
+    private fun initSearchList() {
+        searchRecyclerView.layoutManager = LinearLayoutManager(this)
+
+        searchAdapter = TrackAdapter(
+            arrayListOf(),
+            onTrackClick = { track ->
+                if (clickDebounce()) {
+                    searchHistoryInteractor.addTrack(track)
+                    openPlayer(track)
+                }
+            },
+            showFooter = false
+        )
+
+        searchRecyclerView.adapter = searchAdapter
+    }
+
+    private fun initListeners() {
+        clearButton.setOnClickListener {
+            searchEditText.text.clear()
+            hideKeyboard(searchEditText)
+            searchAdapter.updateTracks(emptyList())
+            showHistoryIfNeeded()
+        }
+
+        retryButton.setOnClickListener {
+            if (searchQueryText.length > 2) {
+                searchTracks(searchQueryText)
+            } else {
+                showHistoryIfNeeded()
+            }
+        }
+
+        searchEditText.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus && searchEditText.text.isEmpty()) {
+                showHistoryIfNeeded()
+            } else {
+                historyContainer.isVisible = false
+            }
+        }
+
+        searchEditText.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                searchQueryText = s?.toString() ?: ""
+                clearButton.isVisible = !s.isNullOrEmpty()
+
+                if (searchQueryText.length > 2) {
+                    historyContainer.isVisible = false
+                    debounceSearch(searchQueryText)
+                } else {
+                    searchAdapter.updateTracks(emptyList())
+                    if (searchEditText.hasFocus()) showHistoryIfNeeded()
+                    else showDefaultState()
+                }
+            }
+
+            override fun afterTextChanged(s: Editable?) {}
+        })
+    }
+
+    private fun debounceSearch(query: String) {
+        searchJob?.cancel()
+        searchJob = lifecycleScope.launch {
+            delay(SEARCH_DEBOUNCE_DELAY)
+            if (query == searchEditText.text.toString() && query.length > 2) {
+                searchTracks(query)
+            }
+        }
+    }
+
+    private fun clickDebounce(): Boolean {
+        val current = isClickAllowed
+        if (current) {
+            isClickAllowed = false
+            lifecycleScope.launch {
+                delay(CLICK_DEBOUNCE_DELAY)
+                isClickAllowed = true
+            }
+        }
+        return current
+    }
+
+    private fun showHistoryIfNeeded() {
+        val history = searchHistoryInteractor.getHistory()
+        val shouldShow = searchEditText.hasFocus() &&
+                searchEditText.text.isEmpty() &&
+                history.isNotEmpty()
+
+        if (shouldShow) {
+            historyAdapter.updateTracks(history)
+            historyContainer.isVisible = true
+            searchRecyclerView.isVisible = false
+            placeholderLayout.isVisible = false
+            networkErrorLayout.isVisible = false
+        } else {
+            historyContainer.isVisible = false
+        }
+    }
+
+    private fun showLoading() {
+        progressBar.isVisible = true
+        searchRecyclerView.isVisible = false
+        placeholderLayout.isVisible = false
+        networkErrorLayout.isVisible = false
+        historyContainer.isVisible = false
+    }
+
+    private fun hideLoading() {
+        progressBar.isVisible = false
+    }
+
+    private fun searchTracks(query: String) {
+        showLoading()
+
+        searchJob?.cancel()
+        searchJob = lifecycleScope.launch {
+            try {
+                val trackList = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    val encodedQuery = URLEncoder.encode(query, "UTF-8")
+                    val url = URL("https://itunes.apple.com/search?entity=song&attribute=songTerm&limit=25&term=$encodedQuery")
+
+                    val connection = url.openConnection() as HttpURLConnection
+                    connection.requestMethod = "GET"
+                    connection.connectTimeout = 1000
+                    connection.readTimeout = 1000
+
+                    try {
+                        if (connection.responseCode == HttpURLConnection.HTTP_OK) {
+                            val response = connection.inputStream.bufferedReader().use { it.readText() }
+                            parseTracks(response)
+                        } else {
+                            throw RuntimeException("HTTP ${connection.responseCode}")
+                        }
+                    } finally {
+                        connection.disconnect()
+                    }
+                }
+
+                historyContainer.isVisible = false
+                searchAdapter.updateTracks(trackList)
+                showResultState(trackList.isEmpty())
+
+            } catch (e: UnknownHostException) {
+                showNetworkError()
+            } catch (e: Exception) {
+                e.printStackTrace()
+                showNetworkError()
+            }
+        }
+    }
+
+    private fun parseTracks(json: String): List<Track> {
+        val resultList = mutableListOf<Track>()
+        val jsonObject = JSONObject(json)
+        val results = jsonObject.getJSONArray("results")
+
+        for (i in 0 until results.length()) {
+            val trackObj = results.getJSONObject(i)
+
+            val trackName = trackObj.optString("trackName", "Без названия")
+            val artistName = trackObj.optString("artistName", "Неизвестен")
+            val trackTimeMillis = trackObj.optLong("trackTimeMillis", 0)
+            val artworkUrl100 = trackObj.optString("artworkUrl100", "")
+            val previewUrl = trackObj.optString("previewUrl", "")
+
+            val collectionName = trackObj.optString("collectionName", "")
+            val releaseDate = trackObj.optString("releaseDate", "")
+            val primaryGenreName = trackObj.optString("primaryGenreName", "")
+            val country = trackObj.optString("country", "")
+            val trackId = trackObj.optLong("trackId", 0)
+
+            resultList.add(
+                Track(
+                    trackId = trackId,
+                    trackName = trackName,
+                    artistName = artistName,
+                    trackTime = millisToTime(trackTimeMillis),
+                    artworkUrl100 = artworkUrl100,
+                    previewUrl = previewUrl,
+                    collectionName = collectionName,
+                    releaseDate = releaseDate,
+                    primaryGenreName = primaryGenreName,
+                    country = country,
+                    trackTimeMillis = trackTimeMillis
+                )
+            )
+        }
+        return resultList
+    }
+
+    private fun millisToTime(ms: Long): String {
+        val totalSeconds = ms / 1000
+        val minutes = totalSeconds / 60
+        val seconds = totalSeconds % 60
+        return String.format("%d:%02d", minutes, seconds)
+    }
+
+    private fun hideKeyboard(editText: EditText) {
+        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        imm.hideSoftInputFromWindow(editText.windowToken, 0)
+    }
+
+    private fun showResultState(isEmpty: Boolean) {
+        hideLoading()
+        searchRecyclerView.isVisible = !isEmpty
+        placeholderLayout.isVisible = isEmpty
+        networkErrorLayout.isVisible = false
+    }
+
+    private fun showNetworkError() {
+        hideLoading()
+        searchRecyclerView.isVisible = false
+        placeholderLayout.isVisible = false
+        networkErrorLayout.isVisible = true
+        historyContainer.isVisible = false
+    }
+
+    private fun showDefaultState() {
+        hideLoading()
+        searchRecyclerView.isVisible = false
+        placeholderLayout.isVisible = false
+        networkErrorLayout.isVisible = false
+        historyContainer.isVisible = false
+    }
+}
