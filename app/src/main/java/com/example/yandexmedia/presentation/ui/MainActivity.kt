@@ -1,9 +1,10 @@
-package com.example.yandexmedia
+package com.example.yandexmedia.presentation.ui
 
 import android.content.Intent
 import android.os.Bundle
-import com.google.android.material.button.MaterialButton
 import androidx.appcompat.app.AppCompatActivity
+import com.example.yandexmedia.R
+import com.google.android.material.button.MaterialButton
 
 class MainActivity : AppCompatActivity() {
 
@@ -11,19 +12,15 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        val cardSearch = findViewById<MaterialButton>(R.id.card_search)
-        val cardLibrary = findViewById<MaterialButton>(R.id.card_library)
-        val cardSettings = findViewById<MaterialButton>(R.id.card_settings)
-
-        cardSearch.setOnClickListener {
+        findViewById<MaterialButton>(R.id.card_search).setOnClickListener {
             startActivity(Intent(this, SearchActivity::class.java))
         }
 
-        cardLibrary.setOnClickListener {
+        findViewById<MaterialButton>(R.id.card_library).setOnClickListener {
             startActivity(Intent(this, MediaActivity::class.java))
         }
 
-        cardSettings.setOnClickListener {
+        findViewById<MaterialButton>(R.id.card_settings).setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
     }
