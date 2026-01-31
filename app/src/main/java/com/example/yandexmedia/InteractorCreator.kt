@@ -13,6 +13,8 @@ import com.example.yandexmedia.domain.interactor.SearchInteractor
 import com.example.yandexmedia.domain.interactor.SearchInteractorImpl
 import com.example.yandexmedia.domain.interactor.ThemeInteractor
 import com.example.yandexmedia.domain.repository.SearchHistoryRepository
+import com.example.yandexmedia.presentation.navigation.ExternalNavigator
+import com.example.yandexmedia.presentation.navigation.ExternalNavigatorImpl
 import com.example.yandexmedia.presentation.viewmodel.SearchViewModel
 
 object InteractorCreator {
@@ -38,6 +40,10 @@ object InteractorCreator {
         return SearchInteractorImpl(
             repository = SearchRepositoryImpl()
         )
+    }
+
+    fun provideExternalNavigator(): ExternalNavigator {
+        return ExternalNavigatorImpl()
     }
 
     fun provideSearchViewModelFactory(): ViewModelProvider.Factory {
