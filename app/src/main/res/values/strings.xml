@@ -29,12 +29,9 @@
     <string name="label_support">Написать в поддержку</string>
     <string name="label_user_agreement">Пользовательское соглашение</string>
 
-    <!-- Поделиться приложением -->
-    <string name="share_message">Попробуй курс по Android-разработке от Практикума! %1$s</string>
     <string name="share_via">Поделиться через</string>
     <string name="course_link">https://practicum.yandex.ru/android-developer/</string>
 
-    <!-- Написать разработчикам -->
     <string name="email_to">developer@yandexmedia.app</string>
     <string name="email_subject">Обратная связь по приложению YandexMedia</string>
     <string name="email_body">Здравствуйте! Хочу поделиться отзывом о приложении...</string>
@@ -42,7 +39,6 @@
     <string name="no_email_client">На устройстве не найдено почтовых приложений</string>
 
 
-    <!-- Пользовательское соглашение -->
     <string name="offer_link">https://yandex.ru/legal/practicum_offer/</string>
     <string name="content_album_art">Обложка альбома</string>
 
@@ -63,6 +59,15 @@
     <string name="country">Страна</string>
     <string name="clear_history">Очистить историю</string>
 
+    <string name="share_message">https://practicum.yandex.ru/android-developer/</string>
+    <string name="share_chooser_title">Поделиться через</string>
+    <string name="support_email">support@yourapp.com</string>
+    <string name="support_subject">Сообщение разработчикам</string>
+    <string name="support_body">Спасибо разработчикам и разработчицам за крутое приложение!</string>
 
+    <string name="user_agreement_url">https://yandex.ru/legal/practicum_offer/</string>
+    <string name="no_email_app">На устройстве нет почтового клиента</string>
+    <string name="no_browser_app">На устройстве нет браузера</string>
+    <string name="share_error">Не удалось открыть приложения для шаринга</string>
 
 </resources>
