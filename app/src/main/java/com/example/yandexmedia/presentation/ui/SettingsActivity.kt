@@ -5,23 +5,17 @@ import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.example.yandexmedia.R
-import com.example.yandexmedia.SettingsApp
-import com.example.yandexmedia.creator.InteractorCreator
-import com.example.yandexmedia.domain.interactor.ThemeInteractor
-import com.example.yandexmedia.presentation.navigation.ExternalNavigator
 import com.google.android.material.switchmaterial.SwitchMaterial
+import org.koin.androidx.viewmodel.ext.android.viewModel
+import com.example.yandexmedia.presentation.viewmodel.SettingsViewModel
 
 class SettingsActivity : AppCompatActivity() {
 
-    private lateinit var themeInteractor: ThemeInteractor
-    private lateinit var externalNavigator: ExternalNavigator
+    private val viewModel: SettingsViewModel by viewModel()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
-
-        themeInteractor = InteractorCreator.provideThemeInteractor(this)
-        externalNavigator = InteractorCreator.provideExternalNavigator()
 
         setupThemeSwitcher()
         setupClicks()
@@ -29,10 +23,9 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun setupThemeSwitcher() {
         findViewById<SwitchMaterial>(R.id.themeSwitcher).apply {
-            isChecked = themeInteractor.isDarkTheme()
+            isChecked = viewModel.isDarkTheme()
             setOnCheckedChangeListener { _, checked ->
-                themeInteractor.setDarkTheme(checked)
-                (application as SettingsApp).applyTheme()
+                viewModel.onThemeChanged(checked)
             }
         }
     }
@@ -46,7 +39,7 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun onShareClicked() {
-        val ok = externalNavigator.share(
+        val ok = viewModel.share(
             activity = this,
             text = getString(R.string.share_message),
             chooserTitle = getString(R.string.share_chooser_title)
@@ -55,7 +48,7 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun onSupportClicked() {
-        val ok = externalNavigator.email(
+        val ok = viewModel.email(
             activity = this,
             to = getString(R.string.support_email),
             subject = getString(R.string.support_subject),
@@ -65,7 +58,7 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun onUserAgreementClicked() {
-        val ok = externalNavigator.openUrl(
+        val ok = viewModel.openUrl(
             activity = this,
             url = getString(R.string.user_agreement_url)
         )
