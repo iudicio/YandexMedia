@@ -5,29 +5,27 @@ import android.content.Intent
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
-import android.view.View
 import android.view.inputmethod.InputMethodManager
-import android.widget.*
-import com.example.yandexmedia.domain.interactor.SearchInteractor
+import android.widget.Button
+import android.widget.EditText
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.ProgressBar
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.example.yandexmedia.creator.InteractorCreator
 import com.example.yandexmedia.R
+import com.example.yandexmedia.creator.InteractorCreator
 import com.example.yandexmedia.domain.interactor.SearchHistoryInteractor
 import com.example.yandexmedia.domain.model.Track
 import com.example.yandexmedia.presentation.adapter.TrackAdapter
-import kotlinx.coroutines.Job
+import com.example.yandexmedia.presentation.viewmodel.SearchState
+import com.example.yandexmedia.presentation.viewmodel.SearchViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
-import java.net.URLEncoder
-import java.net.UnknownHostException
 
 class SearchActivity : AppCompatActivity() {
 
@@ -41,7 +39,6 @@ class SearchActivity : AppCompatActivity() {
     private lateinit var historyContainer: LinearLayout
     private lateinit var historyRecyclerView: RecyclerView
     private lateinit var historyAdapter: TrackAdapter
-    private lateinit var searchInteractor: SearchInteractor
     private lateinit var searchHistoryInteractor: SearchHistoryInteractor
 
     private lateinit var searchEditText: EditText
@@ -49,12 +46,15 @@ class SearchActivity : AppCompatActivity() {
     private lateinit var progressBar: ProgressBar
 
     private var searchQueryText: String = ""
-    private var searchJob: Job? = null
     private var isClickAllowed = true
+
+    private val viewModel: SearchViewModel by viewModels {
+        InteractorCreator.provideSearchViewModelFactory()
+    }
+
 
     companion object {
         const val EXTRA_TRACK = "EXTRA_TRACK"
-        private const val SEARCH_DEBOUNCE_DELAY = 500L
         private const val CLICK_DEBOUNCE_DELAY = 1000L
     }
 
@@ -62,23 +62,16 @@ class SearchActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_search)
 
-        // ✅ ТОЛЬКО ЧЕРЕЗ CREATOR
-        searchHistoryInteractor =
-            InteractorCreator.provideSearchHistoryInteractor(this)
+        searchHistoryInteractor = InteractorCreator.provideSearchHistoryInteractor(this)
 
         initViews()
         initHistory()
         initSearchList()
         initListeners()
+        observeState()
 
         searchEditText.requestFocus()
         showHistoryIfNeeded()
-    }
-
-    private fun openPlayer(track: Track) {
-        val intent = Intent(this, PlayerActivity::class.java)
-        intent.putExtra(EXTRA_TRACK, track)
-        startActivity(intent)
     }
 
     private fun initViews() {
@@ -141,12 +134,13 @@ class SearchActivity : AppCompatActivity() {
             searchEditText.text.clear()
             hideKeyboard(searchEditText)
             searchAdapter.updateTracks(emptyList())
+            viewModel.onQueryChanged("") // сбрасываем состояние поиска
             showHistoryIfNeeded()
         }
 
         retryButton.setOnClickListener {
             if (searchQueryText.length > 2) {
-                searchTracks(searchQueryText)
+                viewModel.onRetry()
             } else {
                 showHistoryIfNeeded()
             }
@@ -167,9 +161,10 @@ class SearchActivity : AppCompatActivity() {
                 searchQueryText = s?.toString() ?: ""
                 clearButton.isVisible = !s.isNullOrEmpty()
 
+                viewModel.onQueryChanged(searchQueryText)
+
                 if (searchQueryText.length > 2) {
                     historyContainer.isVisible = false
-                    debounceSearch(searchQueryText)
                 } else {
                     searchAdapter.updateTracks(emptyList())
                     if (searchEditText.hasFocus()) showHistoryIfNeeded()
@@ -181,14 +176,43 @@ class SearchActivity : AppCompatActivity() {
         })
     }
 
-    private fun debounceSearch(query: String) {
-        searchJob?.cancel()
-        searchJob = lifecycleScope.launch {
-            delay(SEARCH_DEBOUNCE_DELAY)
-            if (query == searchEditText.text.toString() && query.length > 2) {
-                searchTracks(query)
+    private fun observeState() {
+        lifecycleScope.launch {
+            viewModel.state.collect { state ->
+                when (state) {
+                    SearchState.Idle -> {
+                        hideLoading()
+                        if (searchEditText.text.isNullOrEmpty() && searchEditText.hasFocus()) {
+                            showHistoryIfNeeded()
+                        } else {
+                            showDefaultState()
+                        }
+                    }
+
+                    SearchState.Loading -> showLoading()
+
+                    SearchState.Empty -> {
+                        historyContainer.isVisible = false
+                        searchAdapter.updateTracks(emptyList())
+                        showResultState(isEmpty = true)
+                    }
+
+                    is SearchState.Content -> {
+                        historyContainer.isVisible = false
+                        searchAdapter.updateTracks(state.tracks)
+                        showResultState(isEmpty = false)
+                    }
+
+                    SearchState.NetworkError -> showNetworkError()
+                }
             }
         }
+    }
+
+    private fun openPlayer(track: Track) {
+        val intent = Intent(this, PlayerActivity::class.java)
+        intent.putExtra(EXTRA_TRACK, track)
+        startActivity(intent)
     }
 
     private fun clickDebounce(): Boolean {
@@ -232,102 +256,12 @@ class SearchActivity : AppCompatActivity() {
         progressBar.isVisible = false
     }
 
-    private fun searchTracks(query: String) {
-        showLoading()
-
-        searchJob?.cancel()
-        searchJob = lifecycleScope.launch {
-            try {
-                val trackList = withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    val encodedQuery = URLEncoder.encode(query, "UTF-8")
-                    val url = URL("https://itunes.apple.com/search?entity=song&attribute=songTerm&limit=25&term=$encodedQuery")
-
-                    val connection = url.openConnection() as HttpURLConnection
-                    connection.requestMethod = "GET"
-                    connection.connectTimeout = 1000
-                    connection.readTimeout = 1000
-
-                    try {
-                        if (connection.responseCode == HttpURLConnection.HTTP_OK) {
-                            val response = connection.inputStream.bufferedReader().use { it.readText() }
-                            parseTracks(response)
-                        } else {
-                            throw RuntimeException("HTTP ${connection.responseCode}")
-                        }
-                    } finally {
-                        connection.disconnect()
-                    }
-                }
-
-                historyContainer.isVisible = false
-                searchAdapter.updateTracks(trackList)
-                showResultState(trackList.isEmpty())
-
-            } catch (e: UnknownHostException) {
-                showNetworkError()
-            } catch (e: Exception) {
-                e.printStackTrace()
-                showNetworkError()
-            }
-        }
-    }
-
-    private fun parseTracks(json: String): List<Track> {
-        val resultList = mutableListOf<Track>()
-        val jsonObject = JSONObject(json)
-        val results = jsonObject.getJSONArray("results")
-
-        for (i in 0 until results.length()) {
-            val trackObj = results.getJSONObject(i)
-
-            val trackName = trackObj.optString("trackName", "Без названия")
-            val artistName = trackObj.optString("artistName", "Неизвестен")
-            val trackTimeMillis = trackObj.optLong("trackTimeMillis", 0)
-            val artworkUrl100 = trackObj.optString("artworkUrl100", "")
-            val previewUrl = trackObj.optString("previewUrl", "")
-
-            val collectionName = trackObj.optString("collectionName", "")
-            val releaseDate = trackObj.optString("releaseDate", "")
-            val primaryGenreName = trackObj.optString("primaryGenreName", "")
-            val country = trackObj.optString("country", "")
-            val trackId = trackObj.optLong("trackId", 0)
-
-            resultList.add(
-                Track(
-                    trackId = trackId,
-                    trackName = trackName,
-                    artistName = artistName,
-                    trackTime = millisToTime(trackTimeMillis),
-                    artworkUrl100 = artworkUrl100,
-                    previewUrl = previewUrl,
-                    collectionName = collectionName,
-                    releaseDate = releaseDate,
-                    primaryGenreName = primaryGenreName,
-                    country = country,
-                    trackTimeMillis = trackTimeMillis
-                )
-            )
-        }
-        return resultList
-    }
-
-    private fun millisToTime(ms: Long): String {
-        val totalSeconds = ms / 1000
-        val minutes = totalSeconds / 60
-        val seconds = totalSeconds % 60
-        return String.format("%d:%02d", minutes, seconds)
-    }
-
-    private fun hideKeyboard(editText: EditText) {
-        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-        imm.hideSoftInputFromWindow(editText.windowToken, 0)
-    }
-
     private fun showResultState(isEmpty: Boolean) {
         hideLoading()
         searchRecyclerView.isVisible = !isEmpty
         placeholderLayout.isVisible = isEmpty
         networkErrorLayout.isVisible = false
+        historyContainer.isVisible = false
     }
 
     private fun showNetworkError() {
@@ -344,5 +278,10 @@ class SearchActivity : AppCompatActivity() {
         placeholderLayout.isVisible = false
         networkErrorLayout.isVisible = false
         historyContainer.isVisible = false
+    }
+
+    private fun hideKeyboard(editText: EditText) {
+        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        imm.hideSoftInputFromWindow(editText.windowToken, 0)
     }
 }

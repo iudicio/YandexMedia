@@ -1,4 +1,4 @@
-package com.example.yandexmedia.ui.theme
+package com.example.yandexmedia.presentation.theme
 
 import android.app.Activity
 import android.os.Build

@@ -1,14 +1,17 @@
 package com.example.yandexmedia.data.repository
 
 import com.example.yandexmedia.domain.model.Track
+import com.example.yandexmedia.domain.repository.SearchRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 
-class SearchRepository {
+class SearchRepositoryImpl : SearchRepository {
 
-    fun search(query: String): List<Track> {
+    override suspend fun search(query: String): List<Track> = withContext(Dispatchers.IO) {
         val encodedQuery = URLEncoder.encode(query, "UTF-8")
         val url = URL(
             "https://itunes.apple.com/search" +
@@ -20,10 +23,9 @@ class SearchRepository {
         connection.connectTimeout = 1000
         connection.readTimeout = 1000
 
-        return try {
+        try {
             if (connection.responseCode == HttpURLConnection.HTTP_OK) {
-                val response =
-                    connection.inputStream.bufferedReader().use { it.readText() }
+                val response = connection.inputStream.bufferedReader().use { it.readText() }
                 parseTracks(response)
             } else {
                 emptyList()

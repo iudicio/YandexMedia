@@ -1,7 +1,6 @@
-package com.example.yandexmedia.data.interactor
+package com.example.yandexmedia.domain.interactor
 
-import com.example.yandexmedia.domain.interactor.SearchInteractor
-import com.example.yandexmedia.data.repository.SearchRepository
+import com.example.yandexmedia.domain.repository.SearchRepository
 import java.net.UnknownHostException
 
 class SearchInteractorImpl(
