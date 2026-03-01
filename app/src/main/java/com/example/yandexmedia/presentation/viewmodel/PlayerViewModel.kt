@@ -2,12 +2,15 @@ package com.example.yandexmedia.presentation.viewmodel
 
 import android.media.MediaPlayer
 import android.os.Handler
-import android.os.Looper
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import com.example.yandexmedia.di.MediaPlayerProvider
 
-class PlayerViewModel : ViewModel() {
+class PlayerViewModel(
+    private val handler: Handler,
+    private val mediaPlayerProvider: MediaPlayerProvider
+) : ViewModel() {
 
     private val _state = MutableLiveData<PlayerState>(PlayerState.Idle)
     val state: LiveData<PlayerState> = _state
@@ -16,7 +19,6 @@ class PlayerViewModel : ViewModel() {
     private var prepared = false
     private var completed = false
 
-    private val handler = Handler(Looper.getMainLooper())
     private val updater = object : Runnable {
         override fun run() {
             val pos = mediaPlayer?.currentPosition ?: 0
@@ -37,7 +39,7 @@ class PlayerViewModel : ViewModel() {
         completed = false
         _state.value = PlayerState.Idle
 
-        mediaPlayer = MediaPlayer().apply {
+        mediaPlayer = mediaPlayerProvider.create().apply {
             try {
                 setDataSource(url)
                 setOnPreparedListener {
@@ -91,7 +93,7 @@ class PlayerViewModel : ViewModel() {
         stopUpdates()
         try {
             mediaPlayer?.release()
-        } catch (_: Throwable) { }
+        } catch (_: Throwable) {}
         mediaPlayer = null
     }
 

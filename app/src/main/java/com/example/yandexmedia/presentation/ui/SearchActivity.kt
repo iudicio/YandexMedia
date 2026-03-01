@@ -11,21 +11,19 @@ import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
-import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.yandexmedia.R
-import com.example.yandexmedia.creator.InteractorCreator
-import com.example.yandexmedia.domain.interactor.SearchHistoryInteractor
 import com.example.yandexmedia.domain.model.Track
 import com.example.yandexmedia.presentation.adapter.TrackAdapter
 import com.example.yandexmedia.presentation.viewmodel.SearchState
 import com.example.yandexmedia.presentation.viewmodel.SearchViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.koin.androidx.viewmodel.ext.android.viewModel
 
 class SearchActivity : AppCompatActivity() {
 
@@ -39,7 +37,7 @@ class SearchActivity : AppCompatActivity() {
     private lateinit var historyContainer: LinearLayout
     private lateinit var historyRecyclerView: RecyclerView
     private lateinit var historyAdapter: TrackAdapter
-    private lateinit var searchHistoryInteractor: SearchHistoryInteractor
+
 
     private lateinit var searchEditText: EditText
     private lateinit var clearButton: ImageView
@@ -47,10 +45,8 @@ class SearchActivity : AppCompatActivity() {
 
     private var searchQueryText: String = ""
     private var isClickAllowed = true
+    private val viewModel: SearchViewModel by viewModel()
 
-    private val viewModel: SearchViewModel by viewModels {
-        InteractorCreator.provideSearchViewModelFactory()
-    }
 
 
     companion object {
@@ -61,8 +57,6 @@ class SearchActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_search)
-
-        searchHistoryInteractor = InteractorCreator.provideSearchHistoryInteractor(this)
 
         initViews()
         initHistory()
@@ -102,7 +96,7 @@ class SearchActivity : AppCompatActivity() {
                 if (clickDebounce()) openPlayer(track)
             },
             onClearHistoryClick = {
-                searchHistoryInteractor.clear()
+                viewModel.clearHistory()
                 historyAdapter.updateTracks(emptyList())
                 historyContainer.isVisible = false
             },
@@ -119,7 +113,7 @@ class SearchActivity : AppCompatActivity() {
             arrayListOf(),
             onTrackClick = { track ->
                 if (clickDebounce()) {
-                    searchHistoryInteractor.addTrack(track)
+                    viewModel.addToHistory(track)
                     openPlayer(track)
                 }
             },
@@ -207,6 +201,23 @@ class SearchActivity : AppCompatActivity() {
                 }
             }
         }
+        lifecycleScope.launch {
+            viewModel.history.collect { history ->
+                val shouldShow = searchEditText.hasFocus() &&
+                        searchEditText.text.isEmpty() &&
+                        history.isNotEmpty()
+
+                if (shouldShow) {
+                    historyAdapter.updateTracks(history)
+                    historyContainer.isVisible = true
+                    searchRecyclerView.isVisible = false
+                    placeholderLayout.isVisible = false
+                    networkErrorLayout.isVisible = false
+                } else {
+                    historyContainer.isVisible = false
+                }
+            }
+        }
     }
 
     private fun openPlayer(track: Track) {
@@ -228,7 +239,8 @@ class SearchActivity : AppCompatActivity() {
     }
 
     private fun showHistoryIfNeeded() {
-        val history = searchHistoryInteractor.getHistory()
+        val history = viewModel.history.value
+        viewModel.loadHistory()
         val shouldShow = searchEditText.hasFocus() &&
                 searchEditText.text.isEmpty() &&
                 history.isNotEmpty()
