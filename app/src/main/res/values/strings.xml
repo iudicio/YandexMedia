@@ -69,5 +69,7 @@
     <string name="no_email_app">На устройстве нет почтового клиента</string>
     <string name="no_browser_app">На устройстве нет браузера</string>
     <string name="share_error">Не удалось открыть приложения для шаринга</string>
+    <string name="new_playlist">Новывй плейлист</string>
+    <string name="empty_playlists_message">Вы не создали\n ни одного плейлиста</string>
 
 </resources>
