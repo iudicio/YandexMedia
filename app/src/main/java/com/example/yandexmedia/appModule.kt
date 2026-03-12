@@ -16,6 +16,9 @@ import com.example.yandexmedia.domain.repository.SearchHistoryRepository
 import com.example.yandexmedia.domain.repository.SearchRepository
 import com.example.yandexmedia.presentation.navigation.ExternalNavigator
 import com.example.yandexmedia.presentation.navigation.ExternalNavigatorImpl
+import com.example.yandexmedia.presentation.ui.media.viewmodel.FavoritesTracksViewModel
+import com.example.yandexmedia.presentation.ui.media.viewmodel.MediaLibraryViewModel
+import com.example.yandexmedia.presentation.ui.media.viewmodel.PlaylistsViewModel
 import com.example.yandexmedia.presentation.viewmodel.PlayerViewModel
 import com.example.yandexmedia.presentation.viewmodel.SearchViewModel
 import com.example.yandexmedia.presentation.viewmodel.SettingsViewModel
@@ -58,4 +61,8 @@ val appModule = module {
     viewModel { SearchViewModel(searchInteractor = get(), historyInteractor = get()) }
     viewModel { PlayerViewModel(handler = get(), mediaPlayerProvider = get()) }
     viewModel { SettingsViewModel(themeInteractor = get(), externalNavigator = get()) }
+
+    viewModel { MediaLibraryViewModel() }
+    viewModel { PlaylistsViewModel() }
+    viewModel { FavoritesTracksViewModel() }
 }
