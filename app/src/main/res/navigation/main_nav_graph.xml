@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/main_nav_graph"
+    app:startDestination="@id/mediaLibraryFragment">
+
+    <fragment
+        android:id="@+id/mediaLibraryFragment"
+        android:name="com.example.yandexmedia.presentation.ui.media.MediaLibraryFragment"
+        android:label="@string/title_media" />
+
+    <fragment
+        android:id="@+id/searchFragment"
+        android:name="com.example.yandexmedia.presentation.ui.search.SearchFragment"
+        android:label="@string/title_search">
+
+        <action
+            android:id="@+id/action_searchFragment_to_playerFragment"
+            app:destination="@id/playerFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/settingsFragment"
+        android:name="com.example.yandexmedia.presentation.ui.settings.SettingsFragment"
+        android:label="@string/title_settings" />
+
+    <fragment
+        android:id="@+id/playerFragment"
+        android:name="com.example.yandexmedia.presentation.ui.player.PlayerFragment"
+        android:label="@string/title_player">
+
+        <argument
+            android:name="track"
+            app:argType="com.example.yandexmedia.domain.model.Track" />
+    </fragment>
+</navigation>
