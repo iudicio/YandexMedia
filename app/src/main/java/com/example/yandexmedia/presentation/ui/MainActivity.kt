@@ -8,7 +8,8 @@ import androidx.navigation.ui.setupWithNavController
 import com.example.yandexmedia.R
 import com.google.android.material.bottomnavigation.BottomNavigationView
 
-class MainActivity : AppCompatActivity() {
+class
+MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
