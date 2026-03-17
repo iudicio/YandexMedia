@@ -11,5 +11,5 @@
     <color name="color_holder">#1A1B22</color>
     <color name="btn_update">#FFFFFFFF</color>
     <color name="btn_update_text">#000000</color>
-
+    <color name="color_navbar">#1A1B22</color>
 </resources>

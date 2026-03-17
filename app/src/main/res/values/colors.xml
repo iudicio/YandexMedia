@@ -27,6 +27,7 @@
     <color name="btn_update_text">#FFFFFF</color>
     <color name="color_playlist">#AEAFB4</color>
     <color name="color_progressbar">#3772E7</color>
-
+    <color name="color_navbar">#FFFFFFFF</color>
+    <color name="color_navbar_line">#E6E8EB</color>
 
 </resources>
