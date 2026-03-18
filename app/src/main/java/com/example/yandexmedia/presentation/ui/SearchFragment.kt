@@ -26,6 +26,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.androidx.viewmodel.ext.android.viewModel
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import com.example.yandexmedia.presentation.ui.MainActivity
 
 class SearchFragment : Fragment(R.layout.fragment_search) {
 
@@ -56,6 +59,11 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        ViewCompat.setOnApplyWindowInsetsListener(view) { _, insets ->
+            val isKeyboardVisible = insets.isVisible(WindowInsetsCompat.Type.ime())
+            (activity as? MainActivity)?.setBottomNavigationVisible(!isKeyboardVisible)
+            insets
+        }
         super.onViewCreated(view, savedInstanceState)
 
         initViews(view)
@@ -68,6 +76,10 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         showHistoryIfNeeded()
     }
 
+    override fun onDestroyView() {
+        super.onDestroyView()
+        (activity as? MainActivity)?.setBottomNavigationVisible(true)
+    }
     override fun onResume() {
         super.onResume()
         isClickAllowed = true

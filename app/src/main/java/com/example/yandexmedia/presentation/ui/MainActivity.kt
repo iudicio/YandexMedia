@@ -8,8 +8,9 @@ import androidx.navigation.ui.setupWithNavController
 import com.example.yandexmedia.R
 import com.google.android.material.bottomnavigation.BottomNavigationView
 
-class
-MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity() {
+
+    private lateinit var bottomNavigation: BottomNavigationView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -19,11 +20,20 @@ MainActivity : AppCompatActivity() {
             supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as NavHostFragment
         val navController = navHostFragment.navController
 
-        val bottomNavigation = findViewById<BottomNavigationView>(R.id.bottomNavigation)
+        bottomNavigation = findViewById(R.id.bottomNavigation)
         bottomNavigation.setupWithNavController(navController)
 
         navController.addOnDestinationChangedListener { _, destination, _ ->
             bottomNavigation.isVisible = destination.id != R.id.playerFragment
         }
+    }
+
+    fun setBottomNavigationVisible(isVisible: Boolean) {
+        val navHostFragment =
+            supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as? NavHostFragment
+        val currentDestinationId = navHostFragment?.navController?.currentDestination?.id
+
+        bottomNavigation.isVisible =
+            isVisible && currentDestinationId != R.id.playerFragment
     }
 }
