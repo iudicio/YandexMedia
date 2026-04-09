@@ -224,17 +224,16 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         navController.navigate(R.id.playerFragment, bundle)
     }
 
+    private var lastClickTime = 0L
+
     private fun clickDebounce(): Boolean {
-        if (!isClickAllowed) return false
-
-        isClickAllowed = false
-        clickJob?.cancel()
-        clickJob = viewLifecycleOwner.lifecycleScope.launch {
-            delay(CLICK_DEBOUNCE_DELAY)
-            isClickAllowed = true
+        val currentTime = System.currentTimeMillis()
+        return if (currentTime - lastClickTime >= CLICK_DEBOUNCE_DELAY) {
+            lastClickTime = currentTime
+            true
+        } else {
+            false
         }
-
-        return true
     }
 
     private fun showHistoryIfNeeded() {
