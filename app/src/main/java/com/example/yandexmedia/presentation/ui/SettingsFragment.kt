@@ -1,28 +1,27 @@
-package com.example.yandexmedia.presentation.ui
+package com.example.yandexmedia.presentation.ui.settings
 
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
+import androidx.fragment.app.Fragment
 import com.example.yandexmedia.R
+import com.example.yandexmedia.presentation.viewmodel.SettingsViewModel
 import com.google.android.material.switchmaterial.SwitchMaterial
 import org.koin.androidx.viewmodel.ext.android.viewModel
-import com.example.yandexmedia.presentation.viewmodel.SettingsViewModel
 
-class SettingsActivity : AppCompatActivity() {
+class SettingsFragment : Fragment(R.layout.fragment_settings) {
 
     private val viewModel: SettingsViewModel by viewModel()
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_settings)
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
 
-        setupThemeSwitcher()
-        setupClicks()
+        setupThemeSwitcher(view)
+        setupClicks(view)
     }
 
-    private fun setupThemeSwitcher() {
-        findViewById<SwitchMaterial>(R.id.themeSwitcher).apply {
+    private fun setupThemeSwitcher(view: View) {
+        view.findViewById<SwitchMaterial>(R.id.themeSwitcher).apply {
             isChecked = viewModel.isDarkTheme()
             setOnCheckedChangeListener { _, checked ->
                 viewModel.onThemeChanged(checked)
@@ -30,17 +29,15 @@ class SettingsActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupClicks() {
-        findViewById<View>(R.id.backButton).setOnClickListener { finish() }
-
-        findViewById<View>(R.id.shareApp).setOnClickListener { onShareClicked() }
-        findViewById<View>(R.id.support).setOnClickListener { onSupportClicked() }
-        findViewById<View>(R.id.userAgreement).setOnClickListener { onUserAgreementClicked() }
+    private fun setupClicks(view: View) {
+        view.findViewById<View>(R.id.shareApp).setOnClickListener { onShareClicked() }
+        view.findViewById<View>(R.id.support).setOnClickListener { onSupportClicked() }
+        view.findViewById<View>(R.id.userAgreement).setOnClickListener { onUserAgreementClicked() }
     }
 
     private fun onShareClicked() {
         val ok = viewModel.share(
-            activity = this,
+            activity = requireActivity(),
             text = getString(R.string.share_message),
             chooserTitle = getString(R.string.share_chooser_title)
         )
@@ -49,7 +46,7 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun onSupportClicked() {
         val ok = viewModel.email(
-            activity = this,
+            activity = requireActivity(),
             to = getString(R.string.support_email),
             subject = getString(R.string.support_subject),
             body = getString(R.string.support_body)
@@ -59,13 +56,13 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun onUserAgreementClicked() {
         val ok = viewModel.openUrl(
-            activity = this,
+            activity = requireActivity(),
             url = getString(R.string.user_agreement_url)
         )
         if (!ok) showToast(R.string.no_browser_app)
     }
 
     private fun showToast(messageRes: Int) {
-        Toast.makeText(this, messageRes, Toast.LENGTH_SHORT).show()
+        Toast.makeText(requireContext(), messageRes, Toast.LENGTH_SHORT).show()
     }
 }

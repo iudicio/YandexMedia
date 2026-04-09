@@ -1,27 +1,39 @@
 package com.example.yandexmedia.presentation.ui
 
-import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.isVisible
+import androidx.navigation.fragment.NavHostFragment
+import androidx.navigation.ui.setupWithNavController
 import com.example.yandexmedia.R
-import com.google.android.material.button.MaterialButton
+import com.google.android.material.bottomnavigation.BottomNavigationView
 
 class MainActivity : AppCompatActivity() {
+
+    private lateinit var bottomNavigation: BottomNavigationView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        findViewById<MaterialButton>(R.id.card_search).setOnClickListener {
-            startActivity(Intent(this, SearchActivity::class.java))
-        }
+        val navHostFragment =
+            supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as NavHostFragment
+        val navController = navHostFragment.navController
 
-        findViewById<MaterialButton>(R.id.card_library).setOnClickListener {
-            startActivity(Intent(this, MediaActivity::class.java))
-        }
+        bottomNavigation = findViewById(R.id.bottomNavigation)
+        bottomNavigation.setupWithNavController(navController)
 
-        findViewById<MaterialButton>(R.id.card_settings).setOnClickListener {
-            startActivity(Intent(this, SettingsActivity::class.java))
+        navController.addOnDestinationChangedListener { _, destination, _ ->
+            bottomNavigation.isVisible = destination.id != R.id.playerFragment
         }
+    }
+
+    fun setBottomNavigationVisible(isVisible: Boolean) {
+        val navHostFragment =
+            supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as? NavHostFragment
+        val currentDestinationId = navHostFragment?.navController?.currentDestination?.id
+
+        bottomNavigation.isVisible =
+            isVisible && currentDestinationId != R.id.playerFragment
     }
 }

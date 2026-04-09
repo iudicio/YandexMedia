@@ -7,6 +7,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.example.yandexmedia.di.MediaPlayerProvider
 
+
 class PlayerViewModel(
     private val handler: Handler,
     private val mediaPlayerProvider: MediaPlayerProvider
@@ -80,6 +81,13 @@ class PlayerViewModel(
         }
     }
 
+    fun release() {
+        prepared = false
+        completed = false
+        _state.value = PlayerState.Idle
+        releasePlayer()
+    }
+
     private fun startUpdates() {
         handler.removeCallbacks(updater)
         handler.post(updater)
@@ -92,8 +100,10 @@ class PlayerViewModel(
     private fun releasePlayer() {
         stopUpdates()
         try {
+            mediaPlayer?.reset()
             mediaPlayer?.release()
-        } catch (_: Throwable) {}
+        } catch (_: Throwable) {
+        }
         mediaPlayer = null
     }
 
