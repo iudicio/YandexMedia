@@ -1,15 +1,17 @@
 package com.example.yandexmedia.presentation.viewmodel
 
 import android.media.MediaPlayer
-import android.os.Handler
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.example.yandexmedia.di.MediaPlayerProvider
-
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 
 class PlayerViewModel(
-    private val handler: Handler,
     private val mediaPlayerProvider: MediaPlayerProvider
 ) : ViewModel() {
 
@@ -19,14 +21,7 @@ class PlayerViewModel(
     private var mediaPlayer: MediaPlayer? = null
     private var prepared = false
     private var completed = false
-
-    private val updater = object : Runnable {
-        override fun run() {
-            val pos = mediaPlayer?.currentPosition ?: 0
-            _state.value = PlayerState.Playing(format(pos))
-            handler.postDelayed(this, 300)
-        }
-    }
+    private var progressJob: Job? = null
 
     fun prepare(url: String) {
         if (url.isBlank()) {
@@ -45,12 +40,12 @@ class PlayerViewModel(
                 setDataSource(url)
                 setOnPreparedListener {
                     prepared = true
-                    _state.value = PlayerState.Prepared
+                    _state.postValue(PlayerState.Prepared)
                 }
                 setOnCompletionListener {
                     completed = true
-                    stopUpdates()
-                    _state.value = PlayerState.Completed
+                    stopProgressUpdates()
+                    _state.postValue(PlayerState.Completed)
                 }
                 prepareAsync()
             } catch (t: Throwable) {
@@ -68,7 +63,7 @@ class PlayerViewModel(
 
         if (player.isPlaying) {
             player.pause()
-            stopUpdates()
+            stopProgressUpdates()
             _state.value = PlayerState.Paused(format(player.currentPosition))
         } else {
             if (completed) {
@@ -76,8 +71,8 @@ class PlayerViewModel(
                 completed = false
             }
             player.start()
-            startUpdates()
             _state.value = PlayerState.Playing(format(player.currentPosition))
+            startProgressUpdates()
         }
     }
 
@@ -88,17 +83,24 @@ class PlayerViewModel(
         releasePlayer()
     }
 
-    private fun startUpdates() {
-        handler.removeCallbacks(updater)
-        handler.post(updater)
+    private fun startProgressUpdates() {
+        progressJob?.cancel()
+        progressJob = viewModelScope.launch {
+            while (isActive && mediaPlayer?.isPlaying == true) {
+                val position = mediaPlayer?.currentPosition ?: 0
+                _state.postValue(PlayerState.Playing(format(position)))
+                delay(300)
+            }
+        }
     }
 
-    private fun stopUpdates() {
-        handler.removeCallbacks(updater)
+    private fun stopProgressUpdates() {
+        progressJob?.cancel()
+        progressJob = null
     }
 
     private fun releasePlayer() {
-        stopUpdates()
+        stopProgressUpdates()
         try {
             mediaPlayer?.reset()
             mediaPlayer?.release()
@@ -113,7 +115,7 @@ class PlayerViewModel(
     }
 
     private fun format(ms: Int): String {
-        val s = ms / 1000
-        return String.format("%02d:%02d", s / 60, s % 60)
+        val totalSeconds = ms / 1000
+        return String.format("%02d:%02d", totalSeconds / 60, totalSeconds % 60)
     }
 }

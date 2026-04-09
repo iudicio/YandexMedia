@@ -54,17 +54,29 @@ class SearchViewModel(
 
         searchJob = viewModelScope.launch {
             delay(SEARCH_DEBOUNCE_DELAY)
+
             if (text != lastQuery || text.length <= 2) return@launch
 
             _state.value = SearchState.Loading
 
-            when (val result = searchInteractor.search(text)) {
-                is SearchInteractor.SearchResult.Success -> {
-                    val tracks = result.tracks
-                    _state.value = if (tracks.isEmpty()) SearchState.Empty else SearchState.Content(tracks)
+            searchInteractor.search(text).collect { result ->
+                when (result) {
+                    is SearchInteractor.SearchResult.Success -> {
+                        _state.value = if (result.tracks.isEmpty()) {
+                            SearchState.Empty
+                        } else {
+                            SearchState.Content(result.tracks)
+                        }
+                    }
+
+                    SearchInteractor.SearchResult.NetworkError -> {
+                        _state.value = SearchState.NetworkError
+                    }
+
+                    is SearchInteractor.SearchResult.Error -> {
+                        _state.value = SearchState.NetworkError
+                    }
                 }
-                SearchInteractor.SearchResult.NetworkError -> _state.value = SearchState.NetworkError
-                is SearchInteractor.SearchResult.Error -> _state.value = SearchState.NetworkError
             }
         }
     }
