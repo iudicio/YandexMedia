@@ -66,6 +66,8 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
 
     override fun onDestroyView() {
         clickJob?.cancel()
+        clickJob = null
+        isClickAllowed = true
         super.onDestroyView()
     }
 
@@ -227,13 +229,16 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
     private var lastClickTime = 0L
 
     private fun clickDebounce(): Boolean {
-        val currentTime = System.currentTimeMillis()
-        return if (currentTime - lastClickTime >= CLICK_DEBOUNCE_DELAY) {
-            lastClickTime = currentTime
-            true
-        } else {
-            false
+        if (!isClickAllowed) return false
+
+        isClickAllowed = false
+        clickJob?.cancel()
+        clickJob = viewLifecycleOwner.lifecycleScope.launch {
+            delay(CLICK_DEBOUNCE_DELAY)
+            isClickAllowed = true
         }
+
+        return true
     }
 
     private fun showHistoryIfNeeded() {
