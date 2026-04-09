@@ -38,15 +38,18 @@ class PlayerViewModel(
         mediaPlayer = mediaPlayerProvider.create().apply {
             try {
                 setDataSource(url)
+
                 setOnPreparedListener {
                     prepared = true
                     _state.postValue(PlayerState.Prepared)
                 }
+
                 setOnCompletionListener {
                     completed = true
                     stopProgressUpdates()
                     _state.postValue(PlayerState.Completed)
                 }
+
                 prepareAsync()
             } catch (t: Throwable) {
                 prepared = false

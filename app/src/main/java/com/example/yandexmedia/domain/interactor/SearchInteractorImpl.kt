@@ -1,5 +1,6 @@
 package com.example.yandexmedia.domain.interactor
 
+import com.example.yandexmedia.domain.model.Track
 import com.example.yandexmedia.domain.repository.SearchRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -12,7 +13,7 @@ class SearchInteractorImpl(
 
     override fun search(query: String): Flow<SearchInteractor.SearchResult> {
         return repository.search(query)
-            .map<List<com.example.yandexmedia.domain.model.Track>, SearchInteractor.SearchResult> { tracks ->
+            .map<List<Track>, SearchInteractor.SearchResult> { tracks ->
                 SearchInteractor.SearchResult.Success(tracks)
             }
             .catch { throwable ->

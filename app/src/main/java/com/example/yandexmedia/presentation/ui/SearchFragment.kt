@@ -23,8 +23,8 @@ import com.example.yandexmedia.presentation.adapter.TrackAdapter
 import com.example.yandexmedia.presentation.viewmodel.SearchState
 import com.example.yandexmedia.presentation.viewmodel.SearchViewModel
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.koin.androidx.viewmodel.ext.android.viewModel
 
 class SearchFragment : Fragment(R.layout.fragment_search) {
