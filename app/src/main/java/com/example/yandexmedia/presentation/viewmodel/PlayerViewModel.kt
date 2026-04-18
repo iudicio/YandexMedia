@@ -1,27 +1,63 @@
 package com.example.yandexmedia.presentation.viewmodel
 
 import android.media.MediaPlayer
+import android.os.Handler
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.yandexmedia.di.MediaPlayerProvider
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
+import com.example.yandexmedia.domain.interactor.FavoritesInteractor
+import com.example.yandexmedia.domain.model.Track
 import kotlinx.coroutines.launch
 
 class PlayerViewModel(
-    private val mediaPlayerProvider: MediaPlayerProvider
+    private val handler: Handler,
+    private val mediaPlayerProvider: MediaPlayerProvider,
+    private val favoritesInteractor: FavoritesInteractor
 ) : ViewModel() {
 
     private val _state = MutableLiveData<PlayerState>(PlayerState.Idle)
     val state: LiveData<PlayerState> = _state
 
+    private val _isFavorite = MutableLiveData(false)
+    val isFavorite: LiveData<Boolean> = _isFavorite
+
+    private var currentTrack: Track? = null
     private var mediaPlayer: MediaPlayer? = null
     private var prepared = false
     private var completed = false
-    private var progressJob: Job? = null
+
+    private val updater = object : Runnable {
+        override fun run() {
+            val pos = mediaPlayer?.currentPosition ?: 0
+            _state.value = PlayerState.Playing(format(pos))
+            handler.postDelayed(this, 300)
+        }
+    }
+
+    fun setTrack(track: Track) {
+        currentTrack = track
+
+        viewModelScope.launch {
+            _isFavorite.postValue(favoritesInteractor.isFavorite(track.trackId))
+        }
+    }
+
+    fun onFavoriteClicked() {
+        val track = currentTrack ?: return
+        val favoriteNow = _isFavorite.value ?: false
+
+        viewModelScope.launch {
+            if (favoriteNow) {
+                favoritesInteractor.removeTrack(track)
+                _isFavorite.postValue(false)
+            } else {
+                favoritesInteractor.addTrack(track)
+                _isFavorite.postValue(true)
+            }
+        }
+    }
 
     fun prepare(url: String) {
         if (url.isBlank()) {
@@ -38,18 +74,15 @@ class PlayerViewModel(
         mediaPlayer = mediaPlayerProvider.create().apply {
             try {
                 setDataSource(url)
-
                 setOnPreparedListener {
                     prepared = true
-                    _state.postValue(PlayerState.Prepared)
+                    _state.value = PlayerState.Prepared
                 }
-
                 setOnCompletionListener {
                     completed = true
-                    stopProgressUpdates()
-                    _state.postValue(PlayerState.Completed)
+                    stopUpdates()
+                    _state.value = PlayerState.Completed
                 }
-
                 prepareAsync()
             } catch (t: Throwable) {
                 prepared = false
@@ -66,7 +99,7 @@ class PlayerViewModel(
 
         if (player.isPlaying) {
             player.pause()
-            stopProgressUpdates()
+            stopUpdates()
             _state.value = PlayerState.Paused(format(player.currentPosition))
         } else {
             if (completed) {
@@ -74,8 +107,8 @@ class PlayerViewModel(
                 completed = false
             }
             player.start()
+            startUpdates()
             _state.value = PlayerState.Playing(format(player.currentPosition))
-            startProgressUpdates()
         }
     }
 
@@ -86,24 +119,17 @@ class PlayerViewModel(
         releasePlayer()
     }
 
-    private fun startProgressUpdates() {
-        progressJob?.cancel()
-        progressJob = viewModelScope.launch {
-            while (isActive && mediaPlayer?.isPlaying == true) {
-                val position = mediaPlayer?.currentPosition ?: 0
-                _state.postValue(PlayerState.Playing(format(position)))
-                delay(300)
-            }
-        }
+    private fun startUpdates() {
+        handler.removeCallbacks(updater)
+        handler.post(updater)
     }
 
-    private fun stopProgressUpdates() {
-        progressJob?.cancel()
-        progressJob = null
+    private fun stopUpdates() {
+        handler.removeCallbacks(updater)
     }
 
     private fun releasePlayer() {
-        stopProgressUpdates()
+        stopUpdates()
         try {
             mediaPlayer?.reset()
             mediaPlayer?.release()
@@ -118,7 +144,7 @@ class PlayerViewModel(
     }
 
     private fun format(ms: Int): String {
-        val totalSeconds = ms / 1000
-        return String.format("%02d:%02d", totalSeconds / 60, totalSeconds % 60)
+        val s = ms / 1000
+        return String.format("%02d:%02d", s / 60, s % 60)
     }
 }

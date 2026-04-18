@@ -19,6 +19,7 @@ class PlayerFragment : Fragment(R.layout.fragment_player) {
     private val viewModel: PlayerViewModel by viewModel()
 
     private lateinit var playButton: ImageButton
+    private lateinit var favoriteButton: ImageButton
     private lateinit var positionText: TextView
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -28,6 +29,9 @@ class PlayerFragment : Fragment(R.layout.fragment_player) {
 
         bindTrack(view, track)
         observeState()
+        observeFavorite()
+
+        viewModel.setTrack(track)
         viewModel.prepare(track.previewUrl)
     }
 
@@ -38,6 +42,7 @@ class PlayerFragment : Fragment(R.layout.fragment_player) {
 
     private fun bindTrack(view: View, track: Track) {
         playButton = view.findViewById(R.id.playButton)
+        favoriteButton = view.findViewById(R.id.favoriteButton)
         positionText = view.findViewById(R.id.playbackPosition)
 
         view.findViewById<ImageButton>(R.id.backButton).setOnClickListener {
@@ -60,9 +65,20 @@ class PlayerFragment : Fragment(R.layout.fragment_player) {
         Glide.with(requireContext())
             .load(track.getCoverArtwork())
             .placeholder(R.drawable.ic_placeholder)
+            .error(R.drawable.ic_placeholder)
             .into(view.findViewById<ImageView>(R.id.coverImage))
 
         playButton.setOnClickListener { viewModel.onPlayPause() }
+        favoriteButton.setOnClickListener { viewModel.onFavoriteClicked() }
+    }
+
+    private fun observeFavorite() {
+        viewModel.isFavorite.observe(viewLifecycleOwner) { isFavorite ->
+            favoriteButton.setImageResource(
+                if (isFavorite) R.drawable.like_button_active
+                else R.drawable.like_button_inactive
+            )
+        }
     }
 
     private fun observeState() {
