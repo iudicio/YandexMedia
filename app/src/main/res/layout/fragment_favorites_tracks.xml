@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
@@ -8,21 +9,29 @@
         android:id="@+id/placeholderContainer"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:gravity="center"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        android:gravity="top|center_horizontal"
+        android:paddingTop="100dp">
 
         <ImageView
             android:id="@+id/placeholderImage"
             android:layout_width="120dp"
             android:layout_height="120dp"
-            android:src="@drawable/ic_placeholder" />
+            android:contentDescription="@string/app_name"
+            android:src="@drawable/ic_logo_media" />
 
         <TextView
             android:id="@+id/placeholderText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Ваша медиатека пуста"
-            android:layout_marginTop="16dp" />
+            android:layout_marginTop="8dp"
+            android:fontFamily="@font/ys_display_medium"
+            android:text="@string/empty_library_message"
+            android:textColor="@color/color_white_text"
+            android:textSize="16sp"
+            android:gravity="center"
+            android:layout_gravity="center"/>
+
     </LinearLayout>
 
     <!-- Список -->
