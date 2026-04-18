@@ -26,44 +26,32 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.androidx.viewmodel.ext.android.viewModel
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
-import com.example.yandexmedia.presentation.ui.MainActivity
 
 class SearchFragment : Fragment(R.layout.fragment_search) {
 
     private lateinit var searchAdapter: TrackAdapter
-    private lateinit var historyAdapter: TrackAdapter
-
     private lateinit var searchRecyclerView: RecyclerView
-    private lateinit var historyRecyclerView: RecyclerView
-
     private lateinit var placeholderLayout: LinearLayout
     private lateinit var networkErrorLayout: LinearLayout
-    private lateinit var historyContainer: LinearLayout
-
     private lateinit var retryButton: Button
+    private lateinit var historyContainer: LinearLayout
+    private lateinit var historyRecyclerView: RecyclerView
+    private lateinit var historyAdapter: TrackAdapter
     private lateinit var searchEditText: EditText
     private lateinit var clearButton: ImageView
     private lateinit var progressBar: ProgressBar
 
     private var searchQueryText: String = ""
     private var isClickAllowed = true
-    private var clickDebounceJob: Job? = null
+    private var clickJob: Job? = null
 
     private val viewModel: SearchViewModel by viewModel()
 
     companion object {
         private const val CLICK_DEBOUNCE_DELAY = 1000L
-        private const val TRACK_KEY = "track"
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        ViewCompat.setOnApplyWindowInsetsListener(view) { _, insets ->
-            val isKeyboardVisible = insets.isVisible(WindowInsetsCompat.Type.ime())
-            (activity as? MainActivity)?.setBottomNavigationVisible(!isKeyboardVisible)
-            insets
-        }
         super.onViewCreated(view, savedInstanceState)
 
         initViews(view)
@@ -77,17 +65,10 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
     }
 
     override fun onDestroyView() {
-        super.onDestroyView()
-        (activity as? MainActivity)?.setBottomNavigationVisible(true)
-    }
-    override fun onResume() {
-        super.onResume()
+        clickJob?.cancel()
+        clickJob = null
         isClickAllowed = true
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        clickDebounceJob?.cancel()
+        super.onDestroyView()
     }
 
     private fun initViews(view: View) {
@@ -108,9 +89,7 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         historyAdapter = TrackAdapter(
             arrayListOf(),
             onTrackClick = { track ->
-                if (clickDebounce()) {
-                    openPlayer(track)
-                }
+                if (clickDebounce()) openPlayer(track)
             },
             onClearHistoryClick = {
                 viewModel.clearHistory()
@@ -166,21 +145,11 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         }
 
         searchEditText.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(
-                s: CharSequence?,
-                start: Int,
-                count: Int,
-                after: Int
-            ) = Unit
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
 
-            override fun onTextChanged(
-                s: CharSequence?,
-                start: Int,
-                before: Int,
-                count: Int
-            ) {
-                searchQueryText = s?.toString().orEmpty()
-                clearButton.isVisible = searchQueryText.isNotEmpty()
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                searchQueryText = s?.toString() ?: ""
+                clearButton.isVisible = !s.isNullOrEmpty()
 
                 viewModel.onQueryChanged(searchQueryText)
 
@@ -188,11 +157,7 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
                     historyContainer.isVisible = false
                 } else {
                     searchAdapter.updateTracks(emptyList())
-                    if (searchEditText.hasFocus()) {
-                        showHistoryIfNeeded()
-                    } else {
-                        showDefaultState()
-                    }
+                    if (searchEditText.hasFocus()) showHistoryIfNeeded() else showDefaultState()
                 }
             }
 
@@ -213,34 +178,32 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
                         }
                     }
 
-                    SearchState.Loading -> {
-                        showLoading()
-                    }
+                    SearchState.Loading -> showLoading()
 
                     SearchState.Empty -> {
+                        historyContainer.isVisible = false
                         searchAdapter.updateTracks(emptyList())
-                        showEmptyState()
+                        showResultState(isEmpty = true)
                     }
 
                     is SearchState.Content -> {
+                        historyContainer.isVisible = false
                         searchAdapter.updateTracks(state.tracks)
-                        showContentState()
+                        showResultState(isEmpty = false)
                     }
 
-                    SearchState.NetworkError -> {
-                        showNetworkError()
-                    }
+                    SearchState.NetworkError -> showNetworkError()
                 }
             }
         }
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.history.collect { history ->
-                val shouldShowHistory = searchEditText.hasFocus() &&
+                val shouldShow = searchEditText.hasFocus() &&
                         searchEditText.text.isEmpty() &&
                         history.isNotEmpty()
 
-                if (shouldShowHistory) {
+                if (shouldShow) {
                     historyAdapter.updateTracks(history)
                     historyContainer.isVisible = true
                     searchRecyclerView.isVisible = false
@@ -255,22 +218,22 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
 
     private fun openPlayer(track: Track) {
         val navController = findNavController()
-
         if (navController.currentDestination?.id != R.id.searchFragment) return
 
         val bundle = Bundle().apply {
-            putParcelable(TRACK_KEY, track)
+            putParcelable("track", track)
         }
-
         navController.navigate(R.id.playerFragment, bundle)
     }
+
+    private var lastClickTime = 0L
 
     private fun clickDebounce(): Boolean {
         if (!isClickAllowed) return false
 
         isClickAllowed = false
-        clickDebounceJob?.cancel()
-        clickDebounceJob = lifecycleScope.launch {
+        clickJob?.cancel()
+        clickJob = viewLifecycleOwner.lifecycleScope.launch {
             delay(CLICK_DEBOUNCE_DELAY)
             isClickAllowed = true
         }
@@ -280,13 +243,13 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
 
     private fun showHistoryIfNeeded() {
         viewModel.loadHistory()
-
         val history = viewModel.history.value
-        val shouldShowHistory = searchEditText.hasFocus() &&
+
+        val shouldShow = searchEditText.hasFocus() &&
                 searchEditText.text.isEmpty() &&
                 history.isNotEmpty()
 
-        if (shouldShowHistory) {
+        if (shouldShow) {
             historyAdapter.updateTracks(history)
             historyContainer.isVisible = true
             searchRecyclerView.isVisible = false
@@ -294,7 +257,6 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
             networkErrorLayout.isVisible = false
         } else {
             historyContainer.isVisible = false
-            showDefaultState()
         }
     }
 
@@ -310,18 +272,10 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         progressBar.isVisible = false
     }
 
-    private fun showContentState() {
+    private fun showResultState(isEmpty: Boolean) {
         hideLoading()
-        searchRecyclerView.isVisible = true
-        placeholderLayout.isVisible = false
-        networkErrorLayout.isVisible = false
-        historyContainer.isVisible = false
-    }
-
-    private fun showEmptyState() {
-        hideLoading()
-        searchRecyclerView.isVisible = false
-        placeholderLayout.isVisible = true
+        searchRecyclerView.isVisible = !isEmpty
+        placeholderLayout.isVisible = isEmpty
         networkErrorLayout.isVisible = false
         historyContainer.isVisible = false
     }
@@ -343,8 +297,7 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
     }
 
     private fun hideKeyboard(editText: EditText) {
-        val inputMethodManager =
-            requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-        inputMethodManager.hideSoftInputFromWindow(editText.windowToken, 0)
+        val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        imm.hideSoftInputFromWindow(editText.windowToken, 0)
     }
 }

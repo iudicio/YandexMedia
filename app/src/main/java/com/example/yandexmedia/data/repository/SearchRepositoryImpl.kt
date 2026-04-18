@@ -3,7 +3,9 @@ package com.example.yandexmedia.data.repository
 import com.example.yandexmedia.domain.model.Track
 import com.example.yandexmedia.domain.repository.SearchRepository
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
@@ -11,7 +13,11 @@ import java.net.URLEncoder
 
 class SearchRepositoryImpl : SearchRepository {
 
-    override suspend fun search(query: String): List<Track> = withContext(Dispatchers.IO) {
+    override fun search(query: String): Flow<List<Track>> = flow {
+        emit(doSearch(query))
+    }.flowOn(Dispatchers.IO)
+
+    private fun doSearch(query: String): List<Track> {
         val encodedQuery = URLEncoder.encode(query, "UTF-8")
         val url = URL(
             "https://itunes.apple.com/search" +
@@ -23,7 +29,7 @@ class SearchRepositoryImpl : SearchRepository {
         connection.connectTimeout = 1000
         connection.readTimeout = 1000
 
-        try {
+        return try {
             if (connection.responseCode == HttpURLConnection.HTTP_OK) {
                 val response = connection.inputStream.bufferedReader().use { it.readText() }
                 parseTracks(response)
@@ -59,6 +65,7 @@ class SearchRepositoryImpl : SearchRepository {
                 )
             )
         }
+
         return result
     }
 

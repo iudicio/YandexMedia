@@ -1,7 +1,8 @@
 package com.example.yandexmedia.domain.repository
 
 import com.example.yandexmedia.domain.model.Track
+import kotlinx.coroutines.flow.Flow
 
 interface SearchRepository {
-    suspend fun search(query: String): List<Track>
+    fun search(query: String): Flow<List<Track>>
 }

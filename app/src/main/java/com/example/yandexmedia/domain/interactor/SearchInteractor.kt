@@ -1,9 +1,10 @@
 package com.example.yandexmedia.domain.interactor
 
 import com.example.yandexmedia.domain.model.Track
+import kotlinx.coroutines.flow.Flow
 
 interface SearchInteractor {
-    suspend fun search(query: String): SearchResult
+    fun search(query: String): Flow<SearchResult>
 
     sealed interface SearchResult {
         data class Success(val tracks: List<Track>) : SearchResult

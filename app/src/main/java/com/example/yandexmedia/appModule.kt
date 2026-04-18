@@ -1,8 +1,6 @@
 package com.example.yandexmedia.di
 
 import android.content.Context
-import android.os.Handler
-import android.os.Looper
 import com.example.yandexmedia.data.interactor.ThemeInteractorImpl
 import com.example.yandexmedia.data.repository.SearchHistoryRepositoryImpl
 import com.example.yandexmedia.data.repository.SearchRepositoryImpl
@@ -40,6 +38,7 @@ val appModule = module {
     single(named("app_settings_prefs")) {
         androidContext().getSharedPreferences("app_settings", Context.MODE_PRIVATE)
     }
+
     single(named("search_history_prefs")) {
         androidContext().getSharedPreferences("search_history_prefs", Context.MODE_PRIVATE)
     }
@@ -54,12 +53,10 @@ val appModule = module {
     single<SearchHistoryInteractor> { SearchHistoryInteractorImpl(get()) }
 
     single<ExternalNavigator> { ExternalNavigatorImpl() }
-
-    single { Handler(Looper.getMainLooper()) }
     single<MediaPlayerProvider> { AndroidMediaPlayerProvider() }
 
     viewModel { SearchViewModel(searchInteractor = get(), historyInteractor = get()) }
-    viewModel { PlayerViewModel(handler = get(), mediaPlayerProvider = get()) }
+    viewModel { PlayerViewModel(mediaPlayerProvider = get()) }
     viewModel { SettingsViewModel(themeInteractor = get(), externalNavigator = get()) }
 
     viewModel { MediaLibraryViewModel() }
