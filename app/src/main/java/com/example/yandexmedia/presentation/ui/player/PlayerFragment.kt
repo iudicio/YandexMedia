@@ -29,10 +29,7 @@ class PlayerFragment : Fragment(R.layout.fragment_player) {
 
         bindTrack(view, track)
         observeState()
-        observeFavorite()
-
-        viewModel.setTrack(track)
-        viewModel.prepare(track.previewUrl)
+        viewModel.prepare(track)
     }
 
     override fun onDestroyView() {
@@ -65,56 +62,53 @@ class PlayerFragment : Fragment(R.layout.fragment_player) {
         Glide.with(requireContext())
             .load(track.getCoverArtwork())
             .placeholder(R.drawable.ic_placeholder)
-            .error(R.drawable.ic_placeholder)
             .into(view.findViewById<ImageView>(R.id.coverImage))
 
         playButton.setOnClickListener { viewModel.onPlayPause() }
-        favoriteButton.setOnClickListener { viewModel.onFavoriteClicked() }
-    }
-
-    private fun observeFavorite() {
-        viewModel.isFavorite.observe(viewLifecycleOwner) { isFavorite ->
-            favoriteButton.setImageResource(
-                if (isFavorite) R.drawable.like_button_active
-                else R.drawable.like_button_inactive
-            )
-        }
+        favoriteButton.setOnClickListener { viewModel.onFavouriteClicked() }
     }
 
     private fun observeState() {
         viewModel.state.observe(viewLifecycleOwner) { state ->
-            when (state) {
-                PlayerState.Idle -> {
-                    playButton.isEnabled = false
-                    positionText.text = "00:00"
+            playButton.isEnabled = state.isPlayButtonEnabled
+            positionText.text = state.currentPosition
+
+            when (state.playbackState) {
+                PlayerState.PlaybackState.Idle -> {
                     playButton.setImageResource(R.drawable.play)
                 }
-                PlayerState.Prepared -> {
-                    playButton.isEnabled = true
-                    positionText.text = "00:00"
+
+                PlayerState.PlaybackState.Prepared -> {
                     playButton.setImageResource(R.drawable.play)
                 }
-                is PlayerState.Playing -> {
-                    playButton.isEnabled = true
-                    positionText.text = state.position
+
+                PlayerState.PlaybackState.Playing -> {
                     playButton.setImageResource(R.drawable.stop)
                 }
-                is PlayerState.Paused -> {
-                    playButton.isEnabled = true
-                    positionText.text = state.position
+
+                PlayerState.PlaybackState.Paused -> {
                     playButton.setImageResource(R.drawable.play)
                 }
-                PlayerState.Completed -> {
-                    playButton.isEnabled = true
-                    positionText.text = "00:00"
+
+                PlayerState.PlaybackState.Completed -> {
                     playButton.setImageResource(R.drawable.play)
                 }
-                is PlayerState.Error -> {
-                    playButton.isEnabled = false
-                    positionText.text = "00:00"
+
+                PlayerState.PlaybackState.Error -> {
                     playButton.setImageResource(R.drawable.play)
                 }
             }
+
+            updateFavouriteButton(state.isFavourite)
         }
+    }
+
+    private fun updateFavouriteButton(isFavourite: Boolean) {
+        val iconRes = if (isFavourite) {
+            R.drawable.like_button_active
+        } else {
+            R.drawable.like_button_inactive
+        }
+        favoriteButton.setImageResource(iconRes)
     }
 }

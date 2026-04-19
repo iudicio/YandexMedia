@@ -1,10 +1,18 @@
 package com.example.yandexmedia.presentation.viewmodel
 
-sealed interface PlayerState {
-    data object Idle : PlayerState
-    data object Prepared : PlayerState
-    data class Playing(val position: String) : PlayerState
-    data class Paused(val position: String) : PlayerState
-    data object Completed : PlayerState
-    data class Error(val throwable: Throwable? = null) : PlayerState
+data class PlayerState(
+    val playbackState: PlaybackState = PlaybackState.Idle,
+    val currentPosition: String = "00:00",
+    val isPlayButtonEnabled: Boolean = false,
+    val isFavourite: Boolean = false,
+    val error: Throwable? = null
+) {
+    enum class PlaybackState {
+        Idle,
+        Prepared,
+        Playing,
+        Paused,
+        Completed,
+        Error
+    }
 }
