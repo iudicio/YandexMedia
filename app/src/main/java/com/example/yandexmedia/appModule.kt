@@ -1,15 +1,24 @@
 package com.example.yandexmedia.di
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
+import androidx.room.Room
+import com.example.yandexmedia.data.db.AppDatabase
+import com.example.yandexmedia.data.db.TrackDbConverter
 import com.example.yandexmedia.data.interactor.ThemeInteractorImpl
+import com.example.yandexmedia.data.repository.FavoritesRepositoryImpl
 import com.example.yandexmedia.data.repository.SearchHistoryRepositoryImpl
 import com.example.yandexmedia.data.repository.SearchRepositoryImpl
 import com.example.yandexmedia.data.repository.ThemeRepository
+import com.example.yandexmedia.domain.interactor.FavoritesInteractor
+import com.example.yandexmedia.domain.interactor.FavoritesInteractorImpl
 import com.example.yandexmedia.domain.interactor.SearchHistoryInteractor
 import com.example.yandexmedia.domain.interactor.SearchHistoryInteractorImpl
 import com.example.yandexmedia.domain.interactor.SearchInteractor
 import com.example.yandexmedia.domain.interactor.SearchInteractorImpl
 import com.example.yandexmedia.domain.interactor.ThemeInteractor
+import com.example.yandexmedia.domain.repository.FavoritesRepository
 import com.example.yandexmedia.domain.repository.SearchHistoryRepository
 import com.example.yandexmedia.domain.repository.SearchRepository
 import com.example.yandexmedia.presentation.navigation.ExternalNavigator
@@ -43,23 +52,70 @@ val appModule = module {
         androidContext().getSharedPreferences("search_history_prefs", Context.MODE_PRIVATE)
     }
 
+    single {
+        Room.databaseBuilder(
+            androidContext(),
+            AppDatabase::class.java,
+            "app_database"
+        ).build()
+    }
+
+    single { get<AppDatabase>().favoriteTrackDao() }
+    single { TrackDbConverter() }
+
     single { ThemeRepository(get(named("app_settings_prefs"))) }
 
     single<SearchRepository> { SearchRepositoryImpl() }
-    single<SearchHistoryRepository> { SearchHistoryRepositoryImpl(get(named("search_history_prefs"))) }
+
+    single<SearchHistoryRepository> {
+        SearchHistoryRepositoryImpl(get(named("search_history_prefs")))
+    }
+
+    single<FavoritesRepository> {
+        FavoritesRepositoryImpl(
+            dao = get(),
+            converter = get()
+        )
+    }
 
     single<ThemeInteractor> { ThemeInteractorImpl(get()) }
     single<SearchInteractor> { SearchInteractorImpl(get()) }
     single<SearchHistoryInteractor> { SearchHistoryInteractorImpl(get()) }
+    single<FavoritesInteractor> { FavoritesInteractorImpl(get()) }
 
     single<ExternalNavigator> { ExternalNavigatorImpl() }
+
+    single { Handler(Looper.getMainLooper()) }
     single<MediaPlayerProvider> { AndroidMediaPlayerProvider() }
 
-    viewModel { SearchViewModel(searchInteractor = get(), historyInteractor = get()) }
-    viewModel { PlayerViewModel(mediaPlayerProvider = get()) }
-    viewModel { SettingsViewModel(themeInteractor = get(), externalNavigator = get()) }
+    viewModel {
+        SearchViewModel(
+            searchInteractor = get(),
+            historyInteractor = get()
+        )
+    }
+
+    viewModel {
+        PlayerViewModel(
+            handler = get(),
+            mediaPlayerProvider = get(),
+            favoritesInteractor = get()
+        )
+    }
+
+    viewModel {
+        SettingsViewModel(
+            themeInteractor = get(),
+            externalNavigator = get()
+        )
+    }
 
     viewModel { MediaLibraryViewModel() }
     viewModel { PlaylistsViewModel() }
-    viewModel { FavoritesTracksViewModel() }
+
+    viewModel {
+        FavoritesTracksViewModel(
+            favoritesInteractor = get()
+        )
+    }
 }

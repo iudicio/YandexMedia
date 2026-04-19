@@ -24,10 +24,11 @@ class SettingsApp : Application() {
     private fun applyThemeFromPrefs() {
         val themeInteractor = getKoin().get<ThemeInteractor>()
         AppCompatDelegate.setDefaultNightMode(
-            if (themeInteractor.isDarkTheme())
+            if (themeInteractor.isDarkTheme()) {
                 AppCompatDelegate.MODE_NIGHT_YES
-            else
+            } else {
                 AppCompatDelegate.MODE_NIGHT_NO
+            }
         )
     }
 }

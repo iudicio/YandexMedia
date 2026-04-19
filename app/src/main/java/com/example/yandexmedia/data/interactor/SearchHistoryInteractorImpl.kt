@@ -25,8 +25,8 @@ class SearchHistoryInteractorImpl(
     override fun addTrack(track: Track) {
         if (track.previewUrl.isBlank()) return
 
-        val list = getHistory().toMutableList()
-        list.removeAll { it.trackId == track.trackId }
+        val list: MutableList<Track> = getHistory().toMutableList()
+        list.removeAll { item: Track -> item.trackId == track.trackId }
         list.add(0, track)
 
         val trimmed = if (list.size > MAX_SIZE) list.subList(0, MAX_SIZE) else list
