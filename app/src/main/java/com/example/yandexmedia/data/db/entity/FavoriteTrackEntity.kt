@@ -1,10 +1,11 @@
-package com.example.yandexmedia.domain.model
+package com.example.yandexmedia.data.db.entity
 
-import android.os.Parcelable
-import kotlinx.parcelize.Parcelize
+import androidx.room.Entity
+import androidx.room.PrimaryKey
 
-@Parcelize
-data class Track(
+@Entity(tableName = "favorite_tracks")
+data class FavoriteTrackEntity(
+    @PrimaryKey
     val trackId: Long,
     val trackName: String,
     val artistName: String,
@@ -16,9 +17,5 @@ data class Track(
     val primaryGenreName: String? = null,
     val country: String? = null,
     val trackTimeMillis: Long? = null,
-    var isFavorite: Boolean = false
-) : Parcelable {
-
-    fun getCoverArtwork(): String =
-        artworkUrl100.replaceAfterLast('/', "512x512bb.jpg")
-}
+    val addedAt: Long
+)

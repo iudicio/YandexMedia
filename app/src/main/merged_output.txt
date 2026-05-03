@@ -25,7 +25,7 @@
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.YandexMedia"
-            android:windowSoftInputMode="adjustResize">
+            android:windowSoftInputMode="adjustNothing">
 
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -72,15 +72,22 @@ package com.example.yandexmedia.di
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import androidx.room.Room
+import com.example.yandexmedia.data.db.AppDatabase
+import com.example.yandexmedia.data.db.TrackDbConverter
 import com.example.yandexmedia.data.interactor.ThemeInteractorImpl
+import com.example.yandexmedia.data.repository.FavoritesRepositoryImpl
 import com.example.yandexmedia.data.repository.SearchHistoryRepositoryImpl
 import com.example.yandexmedia.data.repository.SearchRepositoryImpl
 import com.example.yandexmedia.data.repository.ThemeRepository
+import com.example.yandexmedia.domain.interactor.FavoritesInteractor
+import com.example.yandexmedia.domain.interactor.FavoritesInteractorImpl
 import com.example.yandexmedia.domain.interactor.SearchHistoryInteractor
 import com.example.yandexmedia.domain.interactor.SearchHistoryInteractorImpl
 import com.example.yandexmedia.domain.interactor.SearchInteractor
 import com.example.yandexmedia.domain.interactor.SearchInteractorImpl
 import com.example.yandexmedia.domain.interactor.ThemeInteractor
+import com.example.yandexmedia.domain.repository.FavoritesRepository
 import com.example.yandexmedia.domain.repository.SearchHistoryRepository
 import com.example.yandexmedia.domain.repository.SearchRepository
 import com.example.yandexmedia.presentation.navigation.ExternalNavigator
@@ -109,31 +116,77 @@ val appModule = module {
     single(named("app_settings_prefs")) {
         androidContext().getSharedPreferences("app_settings", Context.MODE_PRIVATE)
     }
+
     single(named("search_history_prefs")) {
         androidContext().getSharedPreferences("search_history_prefs", Context.MODE_PRIVATE)
     }
 
+    single {
+        Room.databaseBuilder(
+            androidContext(),
+            AppDatabase::class.java,
+            "app_database"
+        ).build()
+    }
+
+    single { get<AppDatabase>().favoriteTrackDao() }
+    single { TrackDbConverter() }
+
     single { ThemeRepository(get(named("app_settings_prefs"))) }
 
     single<SearchRepository> { SearchRepositoryImpl() }
-    single<SearchHistoryRepository> { SearchHistoryRepositoryImpl(get(named("search_history_prefs"))) }
+
+    single<SearchHistoryRepository> {
+        SearchHistoryRepositoryImpl(get(named("search_history_prefs")))
+    }
+
+    single<FavoritesRepository> {
+        FavoritesRepositoryImpl(
+            dao = get(),
+            converter = get()
+        )
+    }
 
     single<ThemeInteractor> { ThemeInteractorImpl(get()) }
     single<SearchInteractor> { SearchInteractorImpl(get()) }
     single<SearchHistoryInteractor> { SearchHistoryInteractorImpl(get()) }
+    single<FavoritesInteractor> { FavoritesInteractorImpl(get()) }
 
     single<ExternalNavigator> { ExternalNavigatorImpl() }
 
     single { Handler(Looper.getMainLooper()) }
     single<MediaPlayerProvider> { AndroidMediaPlayerProvider() }
 
-    viewModel { SearchViewModel(searchInteractor = get(), historyInteractor = get()) }
-    viewModel { PlayerViewModel(handler = get(), mediaPlayerProvider = get()) }
-    viewModel { SettingsViewModel(themeInteractor = get(), externalNavigator = get()) }
+    viewModel {
+        SearchViewModel(
+            searchInteractor = get(),
+            historyInteractor = get()
+        )
+    }
+
+    viewModel {
+        PlayerViewModel(
+            handler = get(),
+            mediaPlayerProvider = get(),
+            favoritesInteractor = get()
+        )
+    }
+
+    viewModel {
+        SettingsViewModel(
+            themeInteractor = get(),
+            externalNavigator = get()
+        )
+    }
 
     viewModel { MediaLibraryViewModel() }
     viewModel { PlaylistsViewModel() }
-    viewModel { FavoritesTracksViewModel() }
+
+    viewModel {
+        FavoritesTracksViewModel(
+            favoritesInteractor = get()
+        )
+    }
 }
 
 ===== FILE: ./java\com\example\yandexmedia\SettingsApp.kt =====
@@ -164,13 +217,126 @@ class SettingsApp : Application() {
     private fun applyThemeFromPrefs() {
         val themeInteractor = getKoin().get<ThemeInteractor>()
         AppCompatDelegate.setDefaultNightMode(
-            if (themeInteractor.isDarkTheme())
+            if (themeInteractor.isDarkTheme()) {
                 AppCompatDelegate.MODE_NIGHT_YES
-            else
+            } else {
                 AppCompatDelegate.MODE_NIGHT_NO
+            }
         )
     }
 }
+
+===== FILE: ./java\com\example\yandexmedia\data\db\AppDatabase.kt =====
+
+package com.example.yandexmedia.data.db
+
+import androidx.room.Database
+import androidx.room.RoomDatabase
+import com.example.yandexmedia.data.db.entity.FavoriteTrackEntity
+
+@Database(
+    entities = [FavoriteTrackEntity::class],
+    version = 1,
+    exportSchema = false
+)
+abstract class AppDatabase : RoomDatabase() {
+    abstract fun favoriteTrackDao(): FavoriteTrackDao
+}
+
+===== FILE: ./java\com\example\yandexmedia\data\db\FavoriteTrackDao.kt =====
+
+package com.example.yandexmedia.data.db
+
+import androidx.room.Dao
+import androidx.room.Delete
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import com.example.yandexmedia.data.db.entity.FavoriteTrackEntity
+import kotlinx.coroutines.flow.Flow
+
+@Dao
+interface FavoriteTrackDao {
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTrack(track: FavoriteTrackEntity)
+
+    @Delete
+    suspend fun deleteTrack(track: FavoriteTrackEntity)
+
+    @Query("SELECT * FROM favorite_tracks ORDER BY addedAt DESC")
+    fun getTracks(): Flow<List<FavoriteTrackEntity>>
+
+    @Query("SELECT EXISTS(SELECT 1 FROM favorite_tracks WHERE trackId = :trackId)")
+    suspend fun isFavorite(trackId: Long): Boolean
+}
+
+===== FILE: ./java\com\example\yandexmedia\data\db\TrackDbConverter.kt =====
+
+package com.example.yandexmedia.data.db
+
+import com.example.yandexmedia.data.db.entity.FavoriteTrackEntity
+import com.example.yandexmedia.domain.model.Track
+
+class TrackDbConverter {
+
+    fun map(track: Track): FavoriteTrackEntity {
+        return FavoriteTrackEntity(
+            trackId = track.trackId,
+            trackName = track.trackName,
+            artistName = track.artistName,
+            trackTime = track.trackTime,
+            artworkUrl100 = track.artworkUrl100,
+            previewUrl = track.previewUrl,
+            collectionName = track.collectionName,
+            releaseDate = track.releaseDate,
+            primaryGenreName = track.primaryGenreName,
+            country = track.country,
+            trackTimeMillis = track.trackTimeMillis,
+            addedAt = System.currentTimeMillis()
+        )
+    }
+
+    fun map(entity: FavoriteTrackEntity): Track {
+        return Track(
+            trackId = entity.trackId,
+            trackName = entity.trackName,
+            artistName = entity.artistName,
+            trackTime = entity.trackTime,
+            artworkUrl100 = entity.artworkUrl100,
+            previewUrl = entity.previewUrl,
+            collectionName = entity.collectionName,
+            releaseDate = entity.releaseDate,
+            primaryGenreName = entity.primaryGenreName,
+            country = entity.country,
+            trackTimeMillis = entity.trackTimeMillis
+        )
+    }
+}
+
+===== FILE: ./java\com\example\yandexmedia\data\db\entity\FavoriteTrackEntity.kt =====
+
+package com.example.yandexmedia.data.db.entity
+
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+
+@Entity(tableName = "favorite_tracks")
+data class FavoriteTrackEntity(
+    @PrimaryKey
+    val trackId: Long,
+    val trackName: String,
+    val artistName: String,
+    val trackTime: String,
+    val artworkUrl100: String,
+    val previewUrl: String,
+    val collectionName: String? = null,
+    val releaseDate: String? = null,
+    val primaryGenreName: String? = null,
+    val country: String? = null,
+    val trackTimeMillis: Long? = null,
+    val addedAt: Long
+)
 
 ===== FILE: ./java\com\example\yandexmedia\data\domain\parseTracks.kt =====
 
@@ -308,8 +474,8 @@ class SearchHistoryInteractorImpl(
     override fun addTrack(track: Track) {
         if (track.previewUrl.isBlank()) return
 
-        val list = getHistory().toMutableList()
-        list.removeAll { it.trackId == track.trackId }
+        val list: MutableList<Track> = getHistory().toMutableList()
+        list.removeAll { item: Track -> item.trackId == track.trackId }
         list.add(0, track)
 
         val trimmed = if (list.size > MAX_SIZE) list.subList(0, MAX_SIZE) else list
@@ -320,7 +486,6 @@ class SearchHistoryInteractorImpl(
         repository.clear()
     }
 }
-
 
 ===== FILE: ./java\com\example\yandexmedia\data\interactor\ThemeInteractorImpl.kt =====
 
@@ -340,6 +505,81 @@ class ThemeInteractorImpl(
     }
 }
 
+
+===== FILE: ./java\com\example\yandexmedia\data\mapper\TrackMapper.kt =====
+
+package com.example.yandexmedia.data.mapper
+
+import com.example.yandexmedia.data.db.entity.FavoriteTrackEntity
+import com.example.yandexmedia.domain.model.Track
+
+fun Track.toEntity(): FavoriteTrackEntity {
+    return FavoriteTrackEntity(
+        trackId = trackId,
+        trackName = trackName,
+        artistName = artistName,
+        trackTime = trackTime,
+        artworkUrl100 = artworkUrl100,
+        previewUrl = previewUrl,
+        collectionName = collectionName,
+        releaseDate = releaseDate,
+        primaryGenreName = primaryGenreName,
+        country = country,
+        trackTimeMillis = trackTimeMillis,
+        addedAt = System.currentTimeMillis()
+    )
+}
+
+fun FavoriteTrackEntity.toDomain(): Track {
+    return Track(
+        trackId = trackId,
+        trackName = trackName,
+        artistName = artistName,
+        trackTime = trackTime,
+        artworkUrl100 = artworkUrl100,
+        previewUrl = previewUrl,
+        collectionName = collectionName,
+        releaseDate = releaseDate,
+        primaryGenreName = primaryGenreName,
+        country = country,
+        trackTimeMillis = trackTimeMillis
+    )
+}
+
+===== FILE: ./java\com\example\yandexmedia\data\repository\FavoritesRepositoryImpl.kt =====
+
+package com.example.yandexmedia.data.repository
+
+import com.example.yandexmedia.data.db.FavoriteTrackDao
+import com.example.yandexmedia.data.db.TrackDbConverter
+import com.example.yandexmedia.domain.model.Track
+import com.example.yandexmedia.domain.repository.FavoritesRepository
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+
+class FavoritesRepositoryImpl(
+    private val dao: FavoriteTrackDao,
+    private val converter: TrackDbConverter
+) : FavoritesRepository {
+
+    override suspend fun addTrack(track: Track) {
+        dao.insertTrack(converter.map(track))
+    }
+
+    override suspend fun removeTrack(track: Track) {
+        dao.deleteTrack(converter.map(track))
+    }
+
+    override suspend fun isFavorite(trackId: Long): Boolean {
+        return dao.isFavorite(trackId)
+    }
+
+    override fun getFavoriteTracks(): Flow<List<Track>> {
+        return dao.getTracks().map { entities ->
+            entities.map { converter.map(it) }
+        }
+    }
+}
 
 ===== FILE: ./java\com\example\yandexmedia\data\repository\SearchHistoryRepositoryImpl.kt =====
 
@@ -418,6 +658,7 @@ class SearchHistoryRepositoryImpl(
 
 ===== FILE: ./java\com\example\yandexmedia\data\repository\SearchRepositoryImpl.kt =====
 
+// SearchRepositoryImpl.kt
 package com.example.yandexmedia.data.repository
 
 import com.example.yandexmedia.domain.model.Track
@@ -490,7 +731,6 @@ class SearchRepositoryImpl : SearchRepository {
     }
 }
 
-
 ===== FILE: ./java\com\example\yandexmedia\data\repository\ThemeRepository.kt =====
 
 package com.example.yandexmedia.data.repository
@@ -526,6 +766,49 @@ class AddTrackToHistoryInteractor(
     }
 }
 
+
+===== FILE: ./java\com\example\yandexmedia\domain\interactor\FavoritesInteractor.kt =====
+
+package com.example.yandexmedia.domain.interactor
+
+import com.example.yandexmedia.domain.model.Track
+import kotlinx.coroutines.flow.Flow
+
+interface FavoritesInteractor {
+    suspend fun addTrack(track: Track)
+    suspend fun removeTrack(track: Track)
+    suspend fun isFavorite(trackId: Long): Boolean
+    fun getFavoriteTracks(): Flow<List<Track>>
+}
+
+===== FILE: ./java\com\example\yandexmedia\domain\interactor\FavoritesInteractorImpl.kt =====
+
+package com.example.yandexmedia.domain.interactor
+
+import com.example.yandexmedia.domain.model.Track
+import com.example.yandexmedia.domain.repository.FavoritesRepository
+import kotlinx.coroutines.flow.Flow
+
+class FavoritesInteractorImpl(
+    private val repository: FavoritesRepository
+) : FavoritesInteractor {
+
+    override suspend fun addTrack(track: Track) {
+        repository.addTrack(track)
+    }
+
+    override suspend fun removeTrack(track: Track) {
+        repository.removeTrack(track)
+    }
+
+    override suspend fun isFavorite(trackId: Long): Boolean {
+        return repository.isFavorite(trackId)
+    }
+
+    override fun getFavoriteTracks(): Flow<List<Track>> {
+        return repository.getFavoriteTracks()
+    }
+}
 
 ===== FILE: ./java\com\example\yandexmedia\domain\interactor\GetSearchHistoryInteractor.kt =====
 
@@ -571,7 +854,6 @@ interface SearchInteractor {
     }
 }
 
-
 ===== FILE: ./java\com\example\yandexmedia\domain\interactor\SearchInteractorImpl.kt =====
 
 package com.example.yandexmedia.domain.interactor
@@ -594,7 +876,6 @@ class SearchInteractorImpl(
         }
     }
 }
-
 
 ===== FILE: ./java\com\example\yandexmedia\domain\interactor\ThemeInteractor.kt =====
 
@@ -625,13 +906,27 @@ data class Track(
     val releaseDate: String? = null,
     val primaryGenreName: String? = null,
     val country: String? = null,
-    val trackTimeMillis: Long? = null
+    val trackTimeMillis: Long? = null,
+    var isFavorite: Boolean = false
 ) : Parcelable {
 
     fun getCoverArtwork(): String =
         artworkUrl100.replaceAfterLast('/', "512x512bb.jpg")
 }
 
+===== FILE: ./java\com\example\yandexmedia\domain\repository\FavoritesRepository.kt =====
+
+package com.example.yandexmedia.domain.repository
+
+import com.example.yandexmedia.domain.model.Track
+import kotlinx.coroutines.flow.Flow
+
+interface FavoritesRepository {
+    suspend fun addTrack(track: Track)
+    suspend fun removeTrack(track: Track)
+    suspend fun isFavorite(trackId: Long): Boolean
+    fun getFavoriteTracks(): Flow<List<Track>>
+}
 
 ===== FILE: ./java\com\example\yandexmedia\domain\repository\SearchHistoryRepository.kt =====
 
@@ -655,49 +950,6 @@ import com.example.yandexmedia.domain.model.Track
 interface SearchRepository {
     suspend fun search(query: String): List<Track>
 }
-
-
-===== FILE: ./java\com\example\yandexmedia\presentation\Creator.kt =====
-
-package com.example.yandexmedia.presentation
-
-import android.content.Context
-import com.example.yandexmedia.data.repository.SearchHistoryRepositoryImpl
-import com.example.yandexmedia.domain.interactor.AddTrackToHistoryInteractor
-import com.example.yandexmedia.domain.interactor.GetSearchHistoryInteractor
-import com.example.yandexmedia.domain.interactor.SearchHistoryInteractor
-import com.example.yandexmedia.domain.interactor.SearchHistoryInteractorImpl
-import com.example.yandexmedia.domain.repository.SearchHistoryRepository
-
-object Creator {
-
-    private fun provideSearchHistoryRepository(context: Context): SearchHistoryRepository {
-        val prefs = context.getSharedPreferences(
-            "search_history",
-            Context.MODE_PRIVATE
-        )
-        return SearchHistoryRepositoryImpl(prefs)
-    }
-
-    private fun provideSearchHistoryInteractor(context: Context): SearchHistoryInteractor {
-        return SearchHistoryInteractorImpl(
-            repository = provideSearchHistoryRepository(context)
-        )
-    }
-
-    fun provideGetSearchHistoryInteractor(context: Context): GetSearchHistoryInteractor {
-        return GetSearchHistoryInteractor(
-            historyInteractor = provideSearchHistoryInteractor(context)
-        )
-    }
-
-    fun provideAddTrackToHistoryInteractor(context: Context): AddTrackToHistoryInteractor {
-        return AddTrackToHistoryInteractor(
-            historyInteractor = provideSearchHistoryInteractor(context)
-        )
-    }
-}
-
 
 ===== FILE: ./java\com\example\yandexmedia\presentation\adapter\TrackAdapter.kt =====
 
@@ -976,6 +1228,8 @@ import com.google.android.material.bottomnavigation.BottomNavigationView
 
 class MainActivity : AppCompatActivity() {
 
+    private lateinit var bottomNavigation: BottomNavigationView
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -984,12 +1238,21 @@ class MainActivity : AppCompatActivity() {
             supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as NavHostFragment
         val navController = navHostFragment.navController
 
-        val bottomNavigation = findViewById<BottomNavigationView>(R.id.bottomNavigation)
+        bottomNavigation = findViewById(R.id.bottomNavigation)
         bottomNavigation.setupWithNavController(navController)
 
         navController.addOnDestinationChangedListener { _, destination, _ ->
             bottomNavigation.isVisible = destination.id != R.id.playerFragment
         }
+    }
+
+    fun setBottomNavigationVisible(isVisible: Boolean) {
+        val navHostFragment =
+            supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as? NavHostFragment
+        val currentDestinationId = navHostFragment?.navController?.currentDestination?.id
+
+        bottomNavigation.isVisible =
+            isVisible && currentDestinationId != R.id.playerFragment
     }
 }
 
@@ -1037,113 +1300,6 @@ class MediaLibraryFragment : Fragment(R.layout.fragment_media_library) {
     }
 }
 
-===== FILE: ./java\com\example\yandexmedia\presentation\ui\PlayerFragment.kt =====
-
-package com.example.yandexmedia.presentation.ui.player
-
-import android.os.Bundle
-import android.view.View
-import android.widget.ImageButton
-import android.widget.ImageView
-import android.widget.TextView
-import androidx.fragment.app.Fragment
-import androidx.navigation.fragment.findNavController
-import com.bumptech.glide.Glide
-import com.example.yandexmedia.R
-import com.example.yandexmedia.domain.model.Track
-import com.example.yandexmedia.presentation.viewmodel.PlayerState
-import com.example.yandexmedia.presentation.viewmodel.PlayerViewModel
-import org.koin.androidx.viewmodel.ext.android.viewModel
-
-class PlayerFragment : Fragment(R.layout.fragment_player) {
-
-    private val viewModel: PlayerViewModel by viewModel()
-
-    private lateinit var playButton: ImageButton
-    private lateinit var positionText: TextView
-
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-
-        val track = arguments?.getParcelable<Track>("track") ?: return
-
-        bindTrack(view, track)
-        observeState()
-        viewModel.prepare(track.previewUrl)
-    }
-
-    override fun onDestroyView() {
-        viewModel.release()
-        super.onDestroyView()
-    }
-
-    private fun bindTrack(view: View, track: Track) {
-        playButton = view.findViewById(R.id.playButton)
-        positionText = view.findViewById(R.id.playbackPosition)
-
-        view.findViewById<ImageButton>(R.id.backButton).setOnClickListener {
-            findNavController().navigateUp()
-        }
-
-        view.findViewById<TextView>(R.id.trackName).text = track.trackName
-        view.findViewById<TextView>(R.id.artistName).text = track.artistName
-        view.findViewById<TextView>(R.id.lengthValue).text = track.trackTime.ifBlank { "—" }
-
-        view.findViewById<TextView>(R.id.albumValue).text =
-            track.collectionName?.takeIf { it.isNotBlank() } ?: "—"
-        view.findViewById<TextView>(R.id.genreValue).text =
-            track.primaryGenreName?.takeIf { it.isNotBlank() } ?: "—"
-        view.findViewById<TextView>(R.id.countryValue).text =
-            track.country?.takeIf { it.isNotBlank() } ?: "—"
-        view.findViewById<TextView>(R.id.yearValue).text =
-            track.releaseDate?.take(4)?.takeIf { it.length == 4 } ?: "—"
-
-        Glide.with(requireContext())
-            .load(track.getCoverArtwork())
-            .placeholder(R.drawable.ic_placeholder)
-            .into(view.findViewById<ImageView>(R.id.coverImage))
-
-        playButton.setOnClickListener { viewModel.onPlayPause() }
-    }
-
-    private fun observeState() {
-        viewModel.state.observe(viewLifecycleOwner) { state ->
-            when (state) {
-                PlayerState.Idle -> {
-                    playButton.isEnabled = false
-                    positionText.text = "00:00"
-                    playButton.setImageResource(R.drawable.play)
-                }
-                PlayerState.Prepared -> {
-                    playButton.isEnabled = true
-                    positionText.text = "00:00"
-                    playButton.setImageResource(R.drawable.play)
-                }
-                is PlayerState.Playing -> {
-                    playButton.isEnabled = true
-                    positionText.text = state.position
-                    playButton.setImageResource(R.drawable.stop)
-                }
-                is PlayerState.Paused -> {
-                    playButton.isEnabled = true
-                    positionText.text = state.position
-                    playButton.setImageResource(R.drawable.play)
-                }
-                PlayerState.Completed -> {
-                    playButton.isEnabled = true
-                    positionText.text = "00:00"
-                    playButton.setImageResource(R.drawable.play)
-                }
-                is PlayerState.Error -> {
-                    playButton.isEnabled = false
-                    positionText.text = "00:00"
-                    playButton.setImageResource(R.drawable.play)
-                }
-            }
-        }
-    }
-}
-
 ===== FILE: ./java\com\example\yandexmedia\presentation\ui\SearchFragment.kt =====
 
 package com.example.yandexmedia.presentation.ui.search
@@ -1170,6 +1326,7 @@ import com.example.yandexmedia.domain.model.Track
 import com.example.yandexmedia.presentation.adapter.TrackAdapter
 import com.example.yandexmedia.presentation.viewmodel.SearchState
 import com.example.yandexmedia.presentation.viewmodel.SearchViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.androidx.viewmodel.ext.android.viewModel
@@ -1190,6 +1347,7 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
 
     private var searchQueryText: String = ""
     private var isClickAllowed = true
+    private var clickJob: Job? = null
 
     private val viewModel: SearchViewModel by viewModel()
 
@@ -1208,6 +1366,13 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
 
         searchEditText.requestFocus()
         showHistoryIfNeeded()
+    }
+
+    override fun onDestroyView() {
+        clickJob?.cancel()
+        clickJob = null
+        isClickAllowed = true
+        super.onDestroyView()
     }
 
     private fun initViews(view: View) {
@@ -1365,16 +1530,19 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         navController.navigate(R.id.playerFragment, bundle)
     }
 
+    private var lastClickTime = 0L
+
     private fun clickDebounce(): Boolean {
-        val current = isClickAllowed
-        if (current) {
-            isClickAllowed = false
-            viewLifecycleOwner.lifecycleScope.launch {
-                delay(CLICK_DEBOUNCE_DELAY)
-                isClickAllowed = true
-            }
+        if (!isClickAllowed) return false
+
+        isClickAllowed = false
+        clickJob?.cancel()
+        clickJob = viewLifecycleOwner.lifecycleScope.launch {
+            delay(CLICK_DEBOUNCE_DELAY)
+            isClickAllowed = true
         }
-        return current
+
+        return true
     }
 
     private fun showHistoryIfNeeded() {
@@ -1536,8 +1704,17 @@ package com.example.yandexmedia.presentation.ui.media.favorites
 
 import android.os.Bundle
 import android.view.View
+import android.widget.ImageView
+import android.widget.TextView
+import androidx.core.os.bundleOf
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
+import androidx.navigation.fragment.findNavController
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.example.yandexmedia.R
+import com.example.yandexmedia.presentation.adapter.TrackAdapter
+import com.example.yandexmedia.presentation.ui.media.model.FavoritesTracksState
 import com.example.yandexmedia.presentation.ui.media.viewmodel.FavoritesTracksViewModel
 import org.koin.androidx.viewmodel.ext.android.viewModel
 
@@ -1545,8 +1722,48 @@ class FavoritesTracksFragment : Fragment(R.layout.fragment_favorites_tracks) {
 
     private val viewModel: FavoritesTracksViewModel by viewModel()
 
+    private lateinit var recyclerView: RecyclerView
+    private lateinit var placeholderImage: ImageView
+    private lateinit var placeholderText: TextView
+    private lateinit var adapter: TrackAdapter
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        recyclerView = view.findViewById(R.id.favoriteTracksRecyclerView)
+        placeholderImage = view.findViewById(R.id.placeholderImage)
+        placeholderText = view.findViewById(R.id.placeholderText)
+
+        adapter = TrackAdapter(
+            tracks = arrayListOf(),
+            onTrackClick = { track ->
+                findNavController().navigate(
+                    R.id.action_mediaLibraryFragment_to_playerFragment,
+                    bundleOf("track" to track)
+                )
+            },
+            showFooter = false
+        )
+
+        recyclerView.layoutManager = LinearLayoutManager(requireContext())
+        recyclerView.adapter = adapter
+
+        viewModel.state.observe(viewLifecycleOwner) { state ->
+            when (state) {
+                FavoritesTracksState.Empty -> {
+                    recyclerView.isVisible = false
+                    placeholderImage.isVisible = true
+                    placeholderText.isVisible = true
+                }
+
+                is FavoritesTracksState.Content -> {
+                    recyclerView.isVisible = true
+                    placeholderImage.isVisible = false
+                    placeholderText.isVisible = false
+                    adapter.updateTracks(state.tracks)
+                }
+            }
+        }
     }
 
     companion object {
@@ -1554,6 +1771,17 @@ class FavoritesTracksFragment : Fragment(R.layout.fragment_favorites_tracks) {
             arguments = Bundle()
         }
     }
+}
+
+===== FILE: ./java\com\example\yandexmedia\presentation\ui\media\model\FavoritesTracksState.kt =====
+
+package com.example.yandexmedia.presentation.ui.media.model
+
+import com.example.yandexmedia.domain.model.Track
+
+sealed interface FavoritesTracksState {
+    data object Empty : FavoritesTracksState
+    data class Content(val tracks: List<Track>) : FavoritesTracksState
 }
 
 ===== FILE: ./java\com\example\yandexmedia\presentation\ui\media\playlists\PlaylistsFragment.kt =====
@@ -1587,9 +1815,32 @@ class PlaylistsFragment : Fragment(R.layout.fragment_playlists) {
 
 package com.example.yandexmedia.presentation.ui.media.viewmodel
 
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.yandexmedia.domain.interactor.FavoritesInteractor
+import com.example.yandexmedia.presentation.ui.media.model.FavoritesTracksState
+import kotlinx.coroutines.launch
 
-class FavoritesTracksViewModel : ViewModel()
+class FavoritesTracksViewModel(
+    private val favoritesInteractor: FavoritesInteractor
+) : ViewModel() {
+
+    private val _state = MutableLiveData<FavoritesTracksState>()
+    val state: LiveData<FavoritesTracksState> = _state
+
+    init {
+        viewModelScope.launch {
+            favoritesInteractor.getFavoriteTracks().collect { tracks ->
+                _state.postValue(
+                    if (tracks.isEmpty()) FavoritesTracksState.Empty
+                    else FavoritesTracksState.Content(tracks)
+                )
+            }
+        }
+    }
+}
 
 ===== FILE: ./java\com\example\yandexmedia\presentation\ui\media\viewmodel\MediaLibraryViewModel.kt =====
 
@@ -1606,6 +1857,130 @@ package com.example.yandexmedia.presentation.ui.media.viewmodel
 import androidx.lifecycle.ViewModel
 
 class PlaylistsViewModel : ViewModel()
+
+===== FILE: ./java\com\example\yandexmedia\presentation\ui\player\PlayerFragment.kt =====
+
+package com.example.yandexmedia.presentation.ui.player
+
+import android.os.Bundle
+import android.view.View
+import android.widget.ImageButton
+import android.widget.ImageView
+import android.widget.TextView
+import androidx.fragment.app.Fragment
+import androidx.navigation.fragment.findNavController
+import com.bumptech.glide.Glide
+import com.example.yandexmedia.R
+import com.example.yandexmedia.domain.model.Track
+import com.example.yandexmedia.presentation.viewmodel.PlayerState
+import com.example.yandexmedia.presentation.viewmodel.PlayerViewModel
+import org.koin.androidx.viewmodel.ext.android.viewModel
+
+class PlayerFragment : Fragment(R.layout.fragment_player) {
+
+    private val viewModel: PlayerViewModel by viewModel()
+
+    private lateinit var playButton: ImageButton
+    private lateinit var positionText: TextView
+    private var favoriteButton: ImageButton? = null
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        val track = arguments?.getParcelable<Track>("track") ?: return
+
+        bindTrack(view, track)
+        observeState()
+        viewModel.prepare(
+            url = track.previewUrl,
+            isFavourite = false
+        )
+    }
+
+    override fun onDestroyView() {
+        viewModel.release()
+        super.onDestroyView()
+    }
+
+    private fun bindTrack(view: View, track: Track) {
+        playButton = view.findViewById(R.id.playButton)
+        positionText = view.findViewById(R.id.playbackPosition)
+
+        favoriteButton = view.findViewByIdOrNull(R.id.favoriteButton)
+
+        view.findViewById<ImageButton>(R.id.backButton).setOnClickListener {
+            findNavController().navigateUp()
+        }
+
+        view.findViewById<TextView>(R.id.trackName).text = track.trackName
+        view.findViewById<TextView>(R.id.artistName).text = track.artistName
+        view.findViewById<TextView>(R.id.lengthValue).text = track.trackTime.ifBlank { "—" }
+
+        view.findViewById<TextView>(R.id.albumValue).text =
+            track.collectionName?.takeIf { it.isNotBlank() } ?: "—"
+        view.findViewById<TextView>(R.id.genreValue).text =
+            track.primaryGenreName?.takeIf { it.isNotBlank() } ?: "—"
+        view.findViewById<TextView>(R.id.countryValue).text =
+            track.country?.takeIf { it.isNotBlank() } ?: "—"
+        view.findViewById<TextView>(R.id.yearValue).text =
+            track.releaseDate?.take(4)?.takeIf { it.length == 4 } ?: "—"
+
+        Glide.with(requireContext())
+            .load(track.getCoverArtwork())
+            .placeholder(R.drawable.ic_placeholder)
+            .into(view.findViewById<ImageView>(R.id.coverImage))
+
+        playButton.setOnClickListener { viewModel.onPlayPause() }
+        favoriteButton?.setOnClickListener { viewModel.onFavoriteClicked() }
+    }
+
+    private fun observeState() {
+        viewModel.state.observe(viewLifecycleOwner) { state ->
+            playButton.isEnabled = state.isPlayButtonEnabled
+            positionText.text = state.position
+
+            when (state.screenState) {
+                PlayerState.ScreenState.Idle -> {
+                    playButton.setImageResource(R.drawable.play)
+                }
+
+                PlayerState.ScreenState.Prepared -> {
+                    playButton.setImageResource(R.drawable.play)
+                }
+
+                PlayerState.ScreenState.Playing -> {
+                    playButton.setImageResource(R.drawable.stop)
+                }
+
+                PlayerState.ScreenState.Paused -> {
+                    playButton.setImageResource(R.drawable.play)
+                }
+
+                PlayerState.ScreenState.Completed -> {
+                    playButton.setImageResource(R.drawable.play)
+                }
+
+                PlayerState.ScreenState.Error -> {
+                    playButton.setImageResource(R.drawable.play)
+                }
+            }
+
+            updateFavoriteButton(state.isFavourite)
+        }
+    }
+
+    private fun updateFavoriteButton(isFavourite: Boolean) {
+        favoriteButton?.isSelected = isFavourite
+    }
+
+    private fun <T : View> View.findViewByIdOrNull(id: Int): T? {
+        return try {
+            findViewById(id)
+        } catch (_: Exception) {
+            null
+        }
+    }
+}
 
 ===== FILE: ./java\com\example\yandexmedia\presentation\ui\theme\Color.kt =====
 
@@ -1714,15 +2089,22 @@ val Typography = Typography(
 
 package com.example.yandexmedia.presentation.viewmodel
 
-sealed interface PlayerState {
-    data object Idle : PlayerState
-    data object Prepared : PlayerState
-    data class Playing(val position: String) : PlayerState
-    data class Paused(val position: String) : PlayerState
-    data object Completed : PlayerState
-    data class Error(val throwable: Throwable? = null) : PlayerState
+data class PlayerState(
+    val screenState: ScreenState = ScreenState.Idle,
+    val position: String = "00:00",
+    val isPlayButtonEnabled: Boolean = false,
+    val isFavourite: Boolean = false,
+    val error: Throwable? = null
+) {
+    enum class ScreenState {
+        Idle,
+        Prepared,
+        Playing,
+        Paused,
+        Completed,
+        Error
+    }
 }
-
 
 ===== FILE: ./java\com\example\yandexmedia\presentation\viewmodel\PlayerViewModel.kt =====
 
@@ -1735,13 +2117,12 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.example.yandexmedia.di.MediaPlayerProvider
 
-
 class PlayerViewModel(
     private val handler: Handler,
     private val mediaPlayerProvider: MediaPlayerProvider
 ) : ViewModel() {
 
-    private val _state = MutableLiveData<PlayerState>(PlayerState.Idle)
+    private val _state = MutableLiveData(PlayerState())
     val state: LiveData<PlayerState> = _state
 
     private var mediaPlayer: MediaPlayer? = null
@@ -1751,14 +2132,25 @@ class PlayerViewModel(
     private val updater = object : Runnable {
         override fun run() {
             val pos = mediaPlayer?.currentPosition ?: 0
-            _state.value = PlayerState.Playing(format(pos))
+            updateState(
+                screenState = PlayerState.ScreenState.Playing,
+                position = format(pos),
+                isPlayButtonEnabled = true,
+                error = null
+            )
             handler.postDelayed(this, 300)
         }
     }
 
-    fun prepare(url: String) {
+    fun prepare(url: String, isFavourite: Boolean = false) {
         if (url.isBlank()) {
-            _state.value = PlayerState.Error(null)
+            _state.value = PlayerState(
+                screenState = PlayerState.ScreenState.Error,
+                position = "00:00",
+                isPlayButtonEnabled = false,
+                isFavourite = isFavourite,
+                error = null
+            )
             return
         }
 
@@ -1766,25 +2158,53 @@ class PlayerViewModel(
 
         prepared = false
         completed = false
-        _state.value = PlayerState.Idle
+
+        _state.value = PlayerState(
+            screenState = PlayerState.ScreenState.Idle,
+            position = "00:00",
+            isPlayButtonEnabled = false,
+            isFavourite = isFavourite,
+            error = null
+        )
 
         mediaPlayer = mediaPlayerProvider.create().apply {
             try {
                 setDataSource(url)
+
                 setOnPreparedListener {
                     prepared = true
-                    _state.value = PlayerState.Prepared
+                    updateState(
+                        screenState = PlayerState.ScreenState.Prepared,
+                        position = "00:00",
+                        isPlayButtonEnabled = true,
+                        error = null
+                    )
                 }
+
                 setOnCompletionListener {
                     completed = true
                     stopUpdates()
-                    _state.value = PlayerState.Completed
+                    updateState(
+                        screenState = PlayerState.ScreenState.Completed,
+                        position = "00:00",
+                        isPlayButtonEnabled = true,
+                        error = null
+                    )
                 }
+
                 prepareAsync()
             } catch (t: Throwable) {
                 prepared = false
                 completed = false
-                _state.value = PlayerState.Error(t)
+
+                _state.value = PlayerState(
+                    screenState = PlayerState.ScreenState.Error,
+                    position = "00:00",
+                    isPlayButtonEnabled = false,
+                    isFavourite = _state.value?.isFavourite ?: false,
+                    error = t
+                )
+
                 releasePlayer()
             }
         }
@@ -1797,23 +2217,62 @@ class PlayerViewModel(
         if (player.isPlaying) {
             player.pause()
             stopUpdates()
-            _state.value = PlayerState.Paused(format(player.currentPosition))
+            updateState(
+                screenState = PlayerState.ScreenState.Paused,
+                position = format(player.currentPosition),
+                isPlayButtonEnabled = true,
+                error = null
+            )
         } else {
             if (completed) {
                 player.seekTo(0)
                 completed = false
             }
+
             player.start()
             startUpdates()
-            _state.value = PlayerState.Playing(format(player.currentPosition))
+            updateState(
+                screenState = PlayerState.ScreenState.Playing,
+                position = format(player.currentPosition),
+                isPlayButtonEnabled = true,
+                error = null
+            )
         }
+    }
+
+    fun onFavoriteClicked() {
+        val currentState = _state.value ?: PlayerState()
+        _state.value = currentState.copy(isFavourite = !currentState.isFavourite)
     }
 
     fun release() {
         prepared = false
         completed = false
-        _state.value = PlayerState.Idle
+
+        _state.value = PlayerState(
+            screenState = PlayerState.ScreenState.Idle,
+            position = "00:00",
+            isPlayButtonEnabled = false,
+            isFavourite = _state.value?.isFavourite ?: false,
+            error = null
+        )
+
         releasePlayer()
+    }
+
+    private fun updateState(
+        screenState: PlayerState.ScreenState,
+        position: String,
+        isPlayButtonEnabled: Boolean,
+        error: Throwable?
+    ) {
+        val currentState = _state.value ?: PlayerState()
+        _state.value = currentState.copy(
+            screenState = screenState,
+            position = position,
+            isPlayButtonEnabled = isPlayButtonEnabled,
+            error = error
+        )
     }
 
     private fun startUpdates() {
@@ -1926,10 +2385,18 @@ class SearchViewModel(
             when (val result = searchInteractor.search(text)) {
                 is SearchInteractor.SearchResult.Success -> {
                     val tracks = result.tracks
-                    _state.value = if (tracks.isEmpty()) SearchState.Empty else SearchState.Content(tracks)
+                    _state.value =
+                        if (tracks.isEmpty()) SearchState.Empty
+                        else SearchState.Content(tracks)
                 }
-                SearchInteractor.SearchResult.NetworkError -> _state.value = SearchState.NetworkError
-                is SearchInteractor.SearchResult.Error -> _state.value = SearchState.NetworkError
+
+                SearchInteractor.SearchResult.NetworkError -> {
+                    _state.value = SearchState.NetworkError
+                }
+
+                is SearchInteractor.SearchResult.Error -> {
+                    _state.value = SearchState.NetworkError
+                }
             }
         }
     }
@@ -1976,8 +2443,8 @@ class SettingsViewModel(
 
 <?xml version="1.0" encoding="utf-8"?>
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:state_checked="true" android:color="@color/color_primary" />
-    <item android:color="@color/color_track_gray" />
+    <item android:state_checked="true" android:color="@color/color_primary_permomently" />
+    <item android:color="@color/color_black" />
 </selector>
 
 ===== FILE: ./res\drawable\arrow_back.xml =====
@@ -1996,6 +2463,21 @@ class SettingsViewModel(
   </group>
 </vector>
 
+
+===== FILE: ./res\drawable\bg_bottom_nav.xml =====
+
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape>
+            <solid android:color="@color/color_navbar"/>
+        </shape>
+    </item>
+    <item android:height="1dp" android:gravity="top">
+        <shape>
+            <solid android:color="@color/color_navbar_line"/>
+        </shape>
+    </item>
+</layer-list>
 
 ===== FILE: ./res\drawable\bg_clear_history_button.xml =====
 
@@ -2497,6 +2979,58 @@ class SettingsViewModel(
 </vector>
 
 
+===== FILE: ./res\drawable\like_button.xml =====
+
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="51dp"
+    android:height="51dp"
+    android:viewportWidth="51"
+    android:viewportHeight="51">
+    <path
+        android:pathData="M25.5,0L25.5,0A25.5,25.5 0,0 1,51 25.5L51,25.5A25.5,25.5 0,0 1,25.5 51L25.5,51A25.5,25.5 0,0 1,0 25.5L0,25.5A25.5,25.5 0,0 1,25.5 0z"
+        android:fillColor="#1A1B22"
+        android:fillAlpha="0.25"/>
+    <path
+        android:pathData="M31.125,15C28.95,15 26.862,16.015 25.5,17.62C24.138,16.015 22.05,15 19.875,15C16.025,15 13,18.033 13,21.894C13,26.632 17.25,30.492 23.688,36.358L25.5,38L27.313,36.346C33.75,30.492 38,26.632 38,21.894C38,18.033 34.975,15 31.125,15ZM25.625,34.491L25.5,34.616L25.375,34.491C19.425,29.088 15.5,25.516 15.5,21.894C15.5,19.387 17.375,17.507 19.875,17.507C21.8,17.507 23.675,18.748 24.337,20.465H26.675C27.325,18.748 29.2,17.507 31.125,17.507C33.625,17.507 35.5,19.387 35.5,21.894C35.5,25.516 31.575,29.088 25.625,34.491Z"
+        android:fillColor="#ffffff"/>
+</vector>
+
+
+===== FILE: ./res\drawable\like_button_active.xml =====
+
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="51dp"
+    android:height="51dp"
+    android:viewportWidth="51"
+    android:viewportHeight="51">
+
+    <path
+        android:pathData="M25.5,0A25.5,25.5 0,1 1,25.5 51A25.5,25.5 0,1 1,25.5 0"
+        android:fillColor="#1A1B22"
+        android:fillAlpha="0.25"/>
+
+    <path
+        android:pathData="M25.5,38L23.7,36.3C17.3,30.5 13,26.6 13,21.9C13,18 16,15 19.9,15C22.1,15 24.2,16 25.5,17.6C26.8,16 28.9,15 31.1,15C35,15 38,18 38,21.9C38,26.6 33.7,30.5 27.3,36.3L25.5,38Z"
+        android:fillColor="#F56B6C"/>
+</vector>
+
+===== FILE: ./res\drawable\like_button_inactive.xml =====
+
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="51dp"
+    android:height="51dp"
+    android:viewportWidth="51"
+    android:viewportHeight="51">
+    <path
+        android:pathData="M25.5,0L25.5,0A25.5,25.5 0,0 1,51 25.5L51,25.5A25.5,25.5 0,0 1,25.5 51L25.5,51A25.5,25.5 0,0 1,0 25.5L0,25.5A25.5,25.5 0,0 1,25.5 0z"
+        android:fillColor="#1A1B22"
+        android:fillAlpha="0.25"/>
+    <path
+        android:pathData="M31.125,15C28.95,15 26.862,16.015 25.5,17.62C24.138,16.015 22.05,15 19.875,15C16.025,15 13,18.033 13,21.894C13,26.632 17.25,30.492 23.688,36.358L25.5,38L27.313,36.346C33.75,30.492 38,26.632 38,21.894C38,18.033 34.975,15 31.125,15ZM25.625,34.491L25.5,34.616L25.375,34.491C19.425,29.088 15.5,25.516 15.5,21.894C15.5,19.387 17.375,17.507 19.875,17.507C21.8,17.507 23.675,18.748 24.337,20.465H26.675C27.325,18.748 29.2,17.507 31.125,17.507C33.625,17.507 35.5,19.387 35.5,21.894C35.5,25.516 31.575,29.088 25.625,34.491Z"
+        android:fillColor="#ffffff"/>
+</vector>
+
+
 ===== FILE: ./res\drawable\new_playlist.xml =====
 
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
@@ -2815,7 +3349,7 @@ android:viewportHeight="36">
 ===== FILE: ./res\layout\activity_main.xml =====
 
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.coordinatorlayout.widget.CoordinatorLayout
+<androidx.constraintlayout.widget.ConstraintLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
@@ -2825,21 +3359,30 @@ android:viewportHeight="36">
     <androidx.fragment.app.FragmentContainerView
         android:id="@+id/nav_host_fragment"
         android:name="androidx.navigation.fragment.NavHostFragment"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginStart="5dp"
+        android:layout_marginEnd="5dp"
         app:defaultNavHost="true"
-        app:navGraph="@navigation/main_nav_graph" />
+        app:navGraph="@navigation/main_nav_graph"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/bottomNavigation" />
 
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:id="@+id/bottomNavigation"
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom"
+        android:background="@drawable/bg_bottom_nav"
         app:menu="@menu/bottom_nav_menu"
         app:itemIconTint="@color/bottom_nav_item_color"
-        app:itemTextColor="@color/bottom_nav_item_color" />
+        app:itemTextColor="@color/bottom_nav_item_color"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent" />
 
-</androidx.coordinatorlayout.widget.CoordinatorLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>
 
 ===== FILE: ./res\layout\activity_media.xml =====
 
@@ -3222,67 +3765,52 @@ android:viewportHeight="36">
 </LinearLayout>
 
 
-===== FILE: ./res\layout\bottom_nav_menu.xml =====
-
-<?xml version="1.0" encoding="utf-8"?>
-<menu xmlns:android="http://schemas.android.com/apk/res/android">
-
-    <item
-        android:id="@+id/mediaLibraryFragment"
-        android:icon="@drawable/ic_media"
-        android:title="@string/menu_library" />
-
-    <item
-        android:id="@+id/searchFragment"
-        android:icon="@drawable/ic_search"
-        android:title="@string/menu_search" />
-
-    <item
-        android:id="@+id/settingsFragment"
-        android:icon="@drawable/ic_settings"
-        android:title="@string/menu_settings" />
-
-</menu>
-
 ===== FILE: ./res\layout\fragment_favorites_tracks.xml =====
 
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@color/color_back_ground">
+    android:layout_height="match_parent">
 
+    <!-- Заглушка -->
     <LinearLayout
-        android:id="@+id/emptyFavoritesContainer"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:gravity="center"
+        android:id="@+id/placeholderContainer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
         android:orientation="vertical"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.497"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.224">
+        android:gravity="top|center_horizontal"
+        android:paddingTop="100dp">
 
         <ImageView
+            android:id="@+id/placeholderImage"
             android:layout_width="120dp"
             android:layout_height="120dp"
             android:contentDescription="@string/app_name"
             android:src="@drawable/ic_logo_media" />
 
         <TextView
+            android:id="@+id/placeholderText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:fontFamily="@font/ys_display_medium"
             android:text="@string/empty_library_message"
             android:textColor="@color/color_white_text"
-            android:textSize="16sp" />
+            android:textSize="16sp"
+            android:gravity="center"
+            android:layout_gravity="center"/>
+
     </LinearLayout>
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+    <!-- Список -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/favoriteTracksRecyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
+
+</FrameLayout>
 
 ===== FILE: ./res\layout\fragment_media_library.xml =====
 
@@ -4044,22 +4572,18 @@ android:viewportHeight="36">
 
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
-
-    <item
-        android:id="@+id/mediaLibraryFragment"
-        android:icon="@drawable/ic_media"
-        android:title="@string/menu_library" />
-
     <item
         android:id="@+id/searchFragment"
         android:icon="@drawable/ic_search"
         android:title="@string/menu_search" />
-
+    <item
+        android:id="@+id/mediaLibraryFragment"
+        android:icon="@drawable/ic_media"
+        android:title="@string/menu_library" />
     <item
         android:id="@+id/settingsFragment"
         android:icon="@drawable/ic_settings"
         android:title="@string/menu_settings" />
-
 </menu>
 
 ===== FILE: ./res\mipmap-anydpi\ic_launcher.xml =====
@@ -4133,6 +4657,9 @@ android:viewportHeight="36">
         android:name="com.example.yandexmedia.presentation.ui.media.MediaLibraryFragment"
         android:label="@string/title_media" />
 
+    <action
+        android:id="@+id/action_mediaLibraryFragment_to_playerFragment"
+        app:destination="@id/playerFragment" />
     <fragment
         android:id="@+id/searchFragment"
         android:name="com.example.yandexmedia.presentation.ui.search.SearchFragment"
@@ -4157,6 +4684,7 @@ android:viewportHeight="36">
             android:name="track"
             app:argType="com.example.yandexmedia.domain.model.Track" />
     </fragment>
+
 </navigation>
 
 ===== FILE: ./res\values\colors.xml =====
@@ -4164,7 +4692,8 @@ android:viewportHeight="36">
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Базовые цвета приложения -->
-    <color name="color_primary">#3772E7</color> <!-- Фон главного экрана -->
+    <color name="color_primary_permomently">#3772E7</color> <!-- Фон главного экрана -->
+    <color name="color_primary">#FFFFFF</color> <!-- Фон главного экрана -->
     <color name="color_primary_night">#1A1B22</color>
     <color name="color_white">#FFFFFFFF</color>
     <color name="color_black">#FF000000</color>
@@ -4189,7 +4718,8 @@ android:viewportHeight="36">
     <color name="btn_update_text">#FFFFFF</color>
     <color name="color_playlist">#AEAFB4</color>
     <color name="color_progressbar">#3772E7</color>
-
+    <color name="color_navbar">#FFFFFFFF</color>
+    <color name="color_navbar_line">#E6E8EB</color>
 
 </resources>
 
@@ -4464,7 +4994,7 @@ android:viewportHeight="36">
     <color name="color_holder">#1A1B22</color>
     <color name="btn_update">#FFFFFFFF</color>
     <color name="btn_update_text">#000000</color>
-
+    <color name="color_navbar">#1A1B22</color>
 </resources>
 
 ===== FILE: ./res\values-night\themes.xml =====

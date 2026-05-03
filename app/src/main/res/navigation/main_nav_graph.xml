@@ -9,6 +9,9 @@
         android:name="com.example.yandexmedia.presentation.ui.media.MediaLibraryFragment"
         android:label="@string/title_media" />
 
+    <action
+        android:id="@+id/action_mediaLibraryFragment_to_playerFragment"
+        app:destination="@id/playerFragment" />
     <fragment
         android:id="@+id/searchFragment"
         android:name="com.example.yandexmedia.presentation.ui.search.SearchFragment"
@@ -33,4 +36,5 @@
             android:name="track"
             app:argType="com.example.yandexmedia.domain.model.Track" />
     </fragment>
+
 </navigation>
