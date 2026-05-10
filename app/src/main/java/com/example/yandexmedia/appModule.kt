@@ -33,6 +33,11 @@ import org.koin.android.ext.koin.androidContext
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
+import com.example.yandexmedia.data.repository.PlaylistsRepositoryImpl
+import com.example.yandexmedia.domain.interactor.PlaylistsInteractor
+import com.example.yandexmedia.domain.interactor.PlaylistsInteractorImpl
+import com.example.yandexmedia.domain.repository.PlaylistsRepository
+import com.example.yandexmedia.presentation.ui.media.viewmodel.CreatePlaylistViewModel
 
 interface MediaPlayerProvider {
     fun create(): android.media.MediaPlayer
@@ -43,7 +48,29 @@ class AndroidMediaPlayerProvider : MediaPlayerProvider {
 }
 
 val appModule = module {
+    single(named("playlists_prefs")) {
+        androidContext().getSharedPreferences("playlists_prefs", Context.MODE_PRIVATE)
+    }
 
+    single<PlaylistsRepository> {
+        PlaylistsRepositoryImpl(get(named("playlists_prefs")))
+    }
+
+    single<PlaylistsInteractor> {
+        PlaylistsInteractorImpl(get())
+    }
+
+    viewModel {
+        PlaylistsViewModel(
+            playlistsInteractor = get()
+        )
+    }
+
+    viewModel {
+        CreatePlaylistViewModel(
+            playlistsInteractor = get()
+        )
+    }
     single(named("app_settings_prefs")) {
         androidContext().getSharedPreferences("app_settings", Context.MODE_PRIVATE)
     }
@@ -99,7 +126,8 @@ val appModule = module {
         PlayerViewModel(
             handler = get(),
             mediaPlayerProvider = get(),
-            favoritesInteractor = get()
+            favoritesInteractor = get(),
+            playlistsInteractor = get()
         )
     }
 
@@ -111,7 +139,6 @@ val appModule = module {
     }
 
     viewModel { MediaLibraryViewModel() }
-    viewModel { PlaylistsViewModel() }
 
     viewModel {
         FavoritesTracksViewModel(

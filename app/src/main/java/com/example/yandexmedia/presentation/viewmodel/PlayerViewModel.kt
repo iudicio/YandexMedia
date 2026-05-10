@@ -5,20 +5,25 @@ import android.os.Handler
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.asLiveData
 import androidx.lifecycle.viewModelScope
 import com.example.yandexmedia.di.MediaPlayerProvider
 import com.example.yandexmedia.domain.interactor.FavoritesInteractor
+import com.example.yandexmedia.domain.interactor.PlaylistsInteractor
 import com.example.yandexmedia.domain.model.Track
 import kotlinx.coroutines.launch
 
 class PlayerViewModel(
     private val handler: Handler,
     private val mediaPlayerProvider: MediaPlayerProvider,
-    private val favoritesInteractor: FavoritesInteractor
+    private val favoritesInteractor: FavoritesInteractor,
+    private val playlistsInteractor: PlaylistsInteractor
 ) : ViewModel() {
 
     private val _state = MutableLiveData(PlayerState())
     val state: LiveData<PlayerState> = _state
+
+    val playlists = playlistsInteractor.getPlaylists().asLiveData()
 
     private var mediaPlayer: MediaPlayer? = null
     private var prepared = false
@@ -36,7 +41,19 @@ class PlayerViewModel(
             handler.postDelayed(this, 300)
         }
     }
-
+    fun addTrackToPlaylist(
+        playlistId: Long,
+        trackId: Long,
+        onResult: (Boolean) -> Unit
+    ) {
+        viewModelScope.launch {
+            val isAdded = playlistsInteractor.addTrackToPlaylist(
+                playlistId = playlistId,
+                trackId = trackId
+            )
+            onResult(isAdded)
+        }
+    }
     fun prepare(track: Track) {
         currentTrack = track
 
@@ -45,14 +62,12 @@ class PlayerViewModel(
                 playbackState = PlayerState.PlaybackState.Error,
                 currentPosition = "00:00",
                 isPlayButtonEnabled = false,
-                isFavourite = false,
-                error = null
+                isFavourite = false
             )
             return
         }
 
         releasePlayer()
-
         prepared = false
         completed = false
 
@@ -60,13 +75,11 @@ class PlayerViewModel(
             playbackState = PlayerState.PlaybackState.Idle,
             currentPosition = "00:00",
             isPlayButtonEnabled = false,
-            isFavourite = false,
-            error = null
+            isFavourite = false
         )
 
         viewModelScope.launch {
-            val isFavourite = favoritesInteractor.isFavorite(track.trackId)
-            updateFavourite(isFavourite)
+            updateFavourite(favoritesInteractor.isFavorite(track.trackId))
         }
 
         mediaPlayer = mediaPlayerProvider.create().apply {
@@ -94,17 +107,12 @@ class PlayerViewModel(
 
                 prepareAsync()
             } catch (t: Throwable) {
-                prepared = false
-                completed = false
-
-                val current = _state.value ?: PlayerState()
-                _state.value = current.copy(
+                _state.value = (_state.value ?: PlayerState()).copy(
                     playbackState = PlayerState.PlaybackState.Error,
                     currentPosition = "00:00",
                     isPlayButtonEnabled = false,
                     error = t
                 )
-
                 releasePlayer()
             }
         }
@@ -119,102 +127,76 @@ class PlayerViewModel(
             stopUpdates()
             updateState(
                 playbackState = PlayerState.PlaybackState.Paused,
-                currentPosition = format(player.currentPosition),
-                isPlayButtonEnabled = true
+                currentPosition = format(player.currentPosition)
             )
         } else {
             if (completed) {
                 player.seekTo(0)
                 completed = false
             }
-
             player.start()
-            startUpdates()
-            updateState(
-                playbackState = PlayerState.PlaybackState.Playing,
-                currentPosition = format(player.currentPosition),
-                isPlayButtonEnabled = true
-            )
+            updateState(playbackState = PlayerState.PlaybackState.Playing)
+            handler.post(updater)
         }
     }
 
     fun onFavouriteClicked() {
         val track = currentTrack ?: return
-        val currentState = _state.value ?: PlayerState()
 
         viewModelScope.launch {
-            if (currentState.isFavourite) {
+            val isFavourite = _state.value?.isFavourite ?: false
+
+            if (isFavourite) {
                 favoritesInteractor.removeTrack(track)
-                updateFavourite(false)
             } else {
                 favoritesInteractor.addTrack(track)
-                updateFavourite(true)
             }
+
+            updateFavourite(!isFavourite)
         }
     }
 
     fun release() {
-        prepared = false
-        completed = false
-
-        val current = _state.value ?: PlayerState()
-        _state.value = current.copy(
-            playbackState = PlayerState.PlaybackState.Idle,
-            currentPosition = "00:00",
-            isPlayButtonEnabled = false,
-            error = null
-        )
-
         releasePlayer()
     }
 
-    private fun updateState(
-        playbackState: PlayerState.PlaybackState,
-        currentPosition: String,
-        isPlayButtonEnabled: Boolean
-    ) {
-        val current = _state.value ?: PlayerState()
-        _state.value = current.copy(
-            playbackState = playbackState,
-            currentPosition = currentPosition,
-            isPlayButtonEnabled = isPlayButtonEnabled,
-            error = null
-        )
+    override fun onCleared() {
+        releasePlayer()
+        super.onCleared()
     }
 
-    private fun updateFavourite(isFavourite: Boolean) {
-        val current = _state.value ?: PlayerState()
-        _state.postValue(
-            current.copy(isFavourite = isFavourite)
-        )
-    }
-
-    private fun startUpdates() {
-        handler.removeCallbacks(updater)
-        handler.post(updater)
+    private fun releasePlayer() {
+        stopUpdates()
+        mediaPlayer?.release()
+        mediaPlayer = null
+        prepared = false
+        completed = false
     }
 
     private fun stopUpdates() {
         handler.removeCallbacks(updater)
     }
 
-    private fun releasePlayer() {
-        stopUpdates()
-        try {
-            mediaPlayer?.reset()
-            mediaPlayer?.release()
-        } catch (_: Throwable) {
-        }
-        mediaPlayer = null
+    private fun updateFavourite(isFavourite: Boolean) {
+        _state.value = (_state.value ?: PlayerState()).copy(isFavourite = isFavourite)
     }
 
-    override fun onCleared() {
-        super.onCleared()
-        releasePlayer()
+    private fun updateState(
+        playbackState: PlayerState.PlaybackState,
+        currentPosition: String = _state.value?.currentPosition ?: "00:00",
+        isPlayButtonEnabled: Boolean = _state.value?.isPlayButtonEnabled ?: true
+    ) {
+        _state.value = (_state.value ?: PlayerState()).copy(
+            playbackState = playbackState,
+            currentPosition = currentPosition,
+            isPlayButtonEnabled = isPlayButtonEnabled
+        )
     }
 
     private fun format(ms: Int): String {
-        val seconds = ms / 1000
-        return String.format("%02d:%02d", seconds / 60, seconds % 60)
+        val totalSeconds = ms / 1000
+        val minutes = totalSeconds / 60
+        val seconds = totalSeconds % 60
+        return String.format("%02d:%02d", minutes, seconds)
     }
 }

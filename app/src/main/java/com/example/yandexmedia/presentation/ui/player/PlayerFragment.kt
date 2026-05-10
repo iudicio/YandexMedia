@@ -13,6 +13,11 @@ import com.example.yandexmedia.domain.model.Track
 import com.example.yandexmedia.presentation.viewmodel.PlayerState
 import com.example.yandexmedia.presentation.viewmodel.PlayerViewModel
 import org.koin.androidx.viewmodel.ext.android.viewModel
+import android.widget.Toast
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.example.yandexmedia.presentation.adapter.PlaylistBottomSheetAdapter
+import com.google.android.material.bottomsheet.BottomSheetDialog
 
 class PlayerFragment : Fragment(R.layout.fragment_player) {
 
@@ -50,6 +55,9 @@ class PlayerFragment : Fragment(R.layout.fragment_player) {
         view.findViewById<TextView>(R.id.artistName).text = track.artistName
         view.findViewById<TextView>(R.id.lengthValue).text = track.trackTime.ifBlank { "—" }
 
+        view.findViewById<ImageButton>(R.id.addToPlaylistButton).setOnClickListener {
+            showAddToPlaylistBottomSheet(track)
+        }
         view.findViewById<TextView>(R.id.albumValue).text =
             track.collectionName?.takeIf { it.isNotBlank() } ?: "—"
         view.findViewById<TextView>(R.id.genreValue).text =
@@ -68,6 +76,50 @@ class PlayerFragment : Fragment(R.layout.fragment_player) {
         favoriteButton.setOnClickListener { viewModel.onFavouriteClicked() }
     }
 
+    private fun showAddToPlaylistBottomSheet(track: Track) {
+        val dialog = BottomSheetDialog(requireContext())
+        val contentView = layoutInflater.inflate(R.layout.bottom_sheet_add_to_playlist, null)
+
+        val recyclerView = contentView.findViewById<RecyclerView>(R.id.playlistsRecyclerView)
+        val newPlaylistButton = contentView.findViewById<ImageButton>(R.id.newPlaylistButton)
+
+        val adapter = PlaylistBottomSheetAdapter { playlist ->
+            viewModel.addTrackToPlaylist(
+                playlistId = playlist.id,
+                trackId = track.trackId
+            ) { isAdded ->
+                if (isAdded) {
+                    dialog.dismiss()
+                    Toast.makeText(
+                        requireContext(),
+                        "Добавлено в плейлист ${playlist.name}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                } else {
+                    Toast.makeText(
+                        requireContext(),
+                        "Трек уже добавлен в плейлист ${playlist.name}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        }
+
+        recyclerView.layoutManager = LinearLayoutManager(requireContext())
+        recyclerView.adapter = adapter
+
+        viewModel.playlists.observe(viewLifecycleOwner) { playlists ->
+            adapter.updatePlaylists(playlists)
+        }
+
+        newPlaylistButton.setOnClickListener {
+            dialog.dismiss()
+            findNavController().navigate(R.id.createPlaylistFragment)
+        }
+
+        dialog.setContentView(contentView)
+        dialog.show()
+    }
     private fun observeState() {
         viewModel.state.observe(viewLifecycleOwner) { state ->
             playButton.isEnabled = state.isPlayButtonEnabled
