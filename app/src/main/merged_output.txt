@@ -74,24 +74,19 @@ import android.os.Handler
 import android.os.Looper
 import androidx.room.Room
 import com.example.yandexmedia.data.db.AppDatabase
+import com.example.yandexmedia.data.db.PlaylistDbConverter
 import com.example.yandexmedia.data.db.TrackDbConverter
 import com.example.yandexmedia.data.interactor.ThemeInteractorImpl
 import com.example.yandexmedia.data.repository.FavoritesRepositoryImpl
+import com.example.yandexmedia.data.repository.PlaylistsRepositoryImpl
 import com.example.yandexmedia.data.repository.SearchHistoryRepositoryImpl
 import com.example.yandexmedia.data.repository.SearchRepositoryImpl
 import com.example.yandexmedia.data.repository.ThemeRepository
-import com.example.yandexmedia.domain.interactor.FavoritesInteractor
-import com.example.yandexmedia.domain.interactor.FavoritesInteractorImpl
-import com.example.yandexmedia.domain.interactor.SearchHistoryInteractor
-import com.example.yandexmedia.domain.interactor.SearchHistoryInteractorImpl
-import com.example.yandexmedia.domain.interactor.SearchInteractor
-import com.example.yandexmedia.domain.interactor.SearchInteractorImpl
-import com.example.yandexmedia.domain.interactor.ThemeInteractor
-import com.example.yandexmedia.domain.repository.FavoritesRepository
-import com.example.yandexmedia.domain.repository.SearchHistoryRepository
-import com.example.yandexmedia.domain.repository.SearchRepository
+import com.example.yandexmedia.domain.interactor.*
+import com.example.yandexmedia.domain.repository.*
 import com.example.yandexmedia.presentation.navigation.ExternalNavigator
 import com.example.yandexmedia.presentation.navigation.ExternalNavigatorImpl
+import com.example.yandexmedia.presentation.ui.media.viewmodel.CreatePlaylistViewModel
 import com.example.yandexmedia.presentation.ui.media.viewmodel.FavoritesTracksViewModel
 import com.example.yandexmedia.presentation.ui.media.viewmodel.MediaLibraryViewModel
 import com.example.yandexmedia.presentation.ui.media.viewmodel.PlaylistsViewModel
@@ -102,50 +97,30 @@ import org.koin.android.ext.koin.androidContext
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
-import com.example.yandexmedia.data.repository.PlaylistsRepositoryImpl
-import com.example.yandexmedia.domain.interactor.PlaylistsInteractor
-import com.example.yandexmedia.domain.interactor.PlaylistsInteractorImpl
-import com.example.yandexmedia.domain.repository.PlaylistsRepository
-import com.example.yandexmedia.presentation.ui.media.viewmodel.CreatePlaylistViewModel
 
 interface MediaPlayerProvider {
     fun create(): android.media.MediaPlayer
 }
 
 class AndroidMediaPlayerProvider : MediaPlayerProvider {
-    override fun create(): android.media.MediaPlayer = android.media.MediaPlayer()
+    override fun create(): android.media.MediaPlayer =
+        android.media.MediaPlayer()
 }
 
 val appModule = module {
-    single(named("playlists_prefs")) {
-        androidContext().getSharedPreferences("playlists_prefs", Context.MODE_PRIVATE)
-    }
 
-    single<PlaylistsRepository> {
-        PlaylistsRepositoryImpl(get(named("playlists_prefs")))
-    }
-
-    single<PlaylistsInteractor> {
-        PlaylistsInteractorImpl(get())
-    }
-
-    viewModel {
-        PlaylistsViewModel(
-            playlistsInteractor = get()
-        )
-    }
-
-    viewModel {
-        CreatePlaylistViewModel(
-            playlistsInteractor = get()
-        )
-    }
     single(named("app_settings_prefs")) {
-        androidContext().getSharedPreferences("app_settings", Context.MODE_PRIVATE)
+        androidContext().getSharedPreferences(
+            "app_settings",
+            Context.MODE_PRIVATE
+        )
     }
 
     single(named("search_history_prefs")) {
-        androidContext().getSharedPreferences("search_history_prefs", Context.MODE_PRIVATE)
+        androidContext().getSharedPreferences(
+            "search_history_prefs",
+            Context.MODE_PRIVATE
+        )
     }
 
     single {
@@ -157,14 +132,21 @@ val appModule = module {
     }
 
     single { get<AppDatabase>().favoriteTrackDao() }
+    single { get<AppDatabase>().playlistsDao() }
+
     single { TrackDbConverter() }
+    single { PlaylistDbConverter() }
 
     single { ThemeRepository(get(named("app_settings_prefs"))) }
 
-    single<SearchRepository> { SearchRepositoryImpl() }
+    single<SearchRepository> {
+        SearchRepositoryImpl()
+    }
 
     single<SearchHistoryRepository> {
-        SearchHistoryRepositoryImpl(get(named("search_history_prefs")))
+        SearchHistoryRepositoryImpl(
+            get(named("search_history_prefs"))
+        )
     }
 
     single<FavoritesRepository> {
@@ -174,15 +156,42 @@ val appModule = module {
         )
     }
 
-    single<ThemeInteractor> { ThemeInteractorImpl(get()) }
-    single<SearchInteractor> { SearchInteractorImpl(get()) }
-    single<SearchHistoryInteractor> { SearchHistoryInteractorImpl(get()) }
-    single<FavoritesInteractor> { FavoritesInteractorImpl(get()) }
+    single<PlaylistsRepository> {
+        PlaylistsRepositoryImpl(
+            dao = get(),
+            converter = get()
+        )
+    }
 
-    single<ExternalNavigator> { ExternalNavigatorImpl() }
+    single<ThemeInteractor> {
+        ThemeInteractorImpl(get())
+    }
+
+    single<SearchInteractor> {
+        SearchInteractorImpl(get())
+    }
+
+    single<SearchHistoryInteractor> {
+        SearchHistoryInteractorImpl(get())
+    }
+
+    single<FavoritesInteractor> {
+        FavoritesInteractorImpl(get())
+    }
+
+    single<PlaylistsInteractor> {
+        PlaylistsInteractorImpl(get())
+    }
+
+    single<ExternalNavigator> {
+        ExternalNavigatorImpl()
+    }
 
     single { Handler(Looper.getMainLooper()) }
-    single<MediaPlayerProvider> { AndroidMediaPlayerProvider() }
+
+    single<MediaPlayerProvider> {
+        AndroidMediaPlayerProvider()
+    }
 
     viewModel {
         SearchViewModel(
@@ -207,11 +216,25 @@ val appModule = module {
         )
     }
 
-    viewModel { MediaLibraryViewModel() }
+    viewModel {
+        MediaLibraryViewModel()
+    }
 
     viewModel {
         FavoritesTracksViewModel(
             favoritesInteractor = get()
+        )
+    }
+
+    viewModel {
+        PlaylistsViewModel(
+            playlistsInteractor = get()
+        )
+    }
+
+    viewModel {
+        CreatePlaylistViewModel(
+            playlistsInteractor = get()
         )
     }
 }
@@ -260,14 +283,23 @@ package com.example.yandexmedia.data.db
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import com.example.yandexmedia.data.db.entity.FavoriteTrackEntity
+import com.example.yandexmedia.data.db.entity.PlaylistEntity
+import com.example.yandexmedia.data.db.entity.PlaylistTrackCrossRef
+import com.example.yandexmedia.data.db.entity.PlaylistTrackEntity
 
 @Database(
-    entities = [FavoriteTrackEntity::class],
-    version = 1,
+    entities = [
+        FavoriteTrackEntity::class,
+        PlaylistEntity::class,
+        PlaylistTrackEntity::class,
+        PlaylistTrackCrossRef::class
+    ],
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun favoriteTrackDao(): FavoriteTrackDao
+    abstract fun playlistsDao(): PlaylistsDao
 }
 
 ===== FILE: ./java\com\example\yandexmedia\data\db\FavoriteTrackDao.kt =====
@@ -296,6 +328,123 @@ interface FavoriteTrackDao {
 
     @Query("SELECT EXISTS(SELECT 1 FROM favorite_tracks WHERE trackId = :trackId)")
     suspend fun isFavorite(trackId: Long): Boolean
+}
+
+===== FILE: ./java\com\example\yandexmedia\data\db\PlaylistDbConverter.kt =====
+
+package com.example.yandexmedia.data.db
+
+import com.example.yandexmedia.data.db.entity.PlaylistEntity
+import com.example.yandexmedia.data.db.entity.PlaylistTrackEntity
+import com.example.yandexmedia.domain.model.Playlist
+import com.example.yandexmedia.domain.model.Track
+
+class PlaylistDbConverter {
+
+    fun map(playlist: Playlist): PlaylistEntity {
+        return PlaylistEntity(
+            id = playlist.id,
+            name = playlist.name,
+            description = playlist.description,
+            coverPath = playlist.coverPath,
+            tracksCount = playlist.tracksCount
+        )
+    }
+
+    fun map(entity: PlaylistEntity): Playlist {
+        return Playlist(
+            id = entity.id,
+            name = entity.name,
+            description = entity.description,
+            coverPath = entity.coverPath,
+            tracksCount = entity.tracksCount
+        )
+    }
+
+    fun map(track: Track): PlaylistTrackEntity {
+        return PlaylistTrackEntity(
+            trackId = track.trackId,
+            trackName = track.trackName,
+            artistName = track.artistName,
+            trackTime = track.trackTime,
+            artworkUrl100 = track.artworkUrl100,
+            previewUrl = track.previewUrl,
+            collectionName = track.collectionName,
+            releaseDate = track.releaseDate,
+            primaryGenreName = track.primaryGenreName,
+            country = track.country,
+            trackTimeMillis = track.trackTimeMillis
+        )
+    }
+}
+
+===== FILE: ./java\com\example\yandexmedia\data\db\PlaylistsDao.kt =====
+
+package com.example.yandexmedia.data.db
+
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import androidx.room.Transaction
+import com.example.yandexmedia.data.db.entity.PlaylistEntity
+import com.example.yandexmedia.data.db.entity.PlaylistTrackCrossRef
+import com.example.yandexmedia.data.db.entity.PlaylistTrackEntity
+import kotlinx.coroutines.flow.Flow
+
+@Dao
+interface PlaylistsDao {
+
+    @Query("SELECT * FROM playlists ORDER BY id DESC")
+    fun getPlaylists(): Flow<List<PlaylistEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertPlaylist(
+        playlist: PlaylistEntity
+    )
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertTrack(
+        track: PlaylistTrackEntity
+    )
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertCrossRef(
+        crossRef: PlaylistTrackCrossRef
+    ): Long
+
+    @Query("""
+        UPDATE playlists
+        SET tracksCount = tracksCount + 1
+        WHERE id = :playlistId
+    """)
+    suspend fun incrementTracksCount(
+        playlistId: Long
+    )
+
+    @Transaction
+    suspend fun addTrackToPlaylist(
+        playlistId: Long,
+        track: PlaylistTrackEntity
+    ): Boolean {
+
+        insertTrack(track)
+
+        val result = insertCrossRef(
+            PlaylistTrackCrossRef(
+                playlistId = playlistId,
+                trackId = track.trackId
+            )
+        )
+
+        val isAdded = result != -1L
+
+        if (isAdded) {
+            incrementTracksCount(playlistId)
+        }
+
+        return isAdded
+    }
 }
 
 ===== FILE: ./java\com\example\yandexmedia\data\db\TrackDbConverter.kt =====
@@ -363,6 +512,81 @@ data class FavoriteTrackEntity(
     val country: String? = null,
     val trackTimeMillis: Long? = null,
     val addedAt: Long
+)
+
+===== FILE: ./java\com\example\yandexmedia\data\db\entity\PlaylistEntity.kt =====
+
+package com.example.yandexmedia.data.db.entity
+
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+
+@Entity(tableName = "playlists")
+data class PlaylistEntity(
+    @PrimaryKey
+    val id: Long,
+    val name: String,
+    val description: String,
+    val coverPath: String?,
+    val tracksCount: Int
+)
+
+===== FILE: ./java\com\example\yandexmedia\data\db\entity\PlaylistTrackCrossRef.kt =====
+
+package com.example.yandexmedia.data.db.entity
+
+import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.Index
+
+@Entity(
+    tableName = "playlist_track_cross_ref",
+    primaryKeys = ["playlistId", "trackId"],
+    foreignKeys = [
+        ForeignKey(
+            entity = PlaylistEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["playlistId"],
+            onDelete = ForeignKey.CASCADE
+        ),
+        ForeignKey(
+            entity = PlaylistTrackEntity::class,
+            parentColumns = ["trackId"],
+            childColumns = ["trackId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [
+        Index("playlistId"),
+        Index("trackId")
+    ]
+)
+data class PlaylistTrackCrossRef(
+    val playlistId: Long,
+    val trackId: Long
+)
+
+===== FILE: ./java\com\example\yandexmedia\data\db\entity\PlaylistTrackEntity.kt =====
+
+package com.example.yandexmedia.data.db.entity
+
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+
+@Entity(tableName = "playlist_tracks")
+data class PlaylistTrackEntity(
+    @PrimaryKey
+    val trackId: Long,
+    val trackName: String,
+    val artistName: String,
+    val trackTime: String,
+    val artworkUrl100: String,
+    val previewUrl: String,
+    val collectionName: String?,
+    val releaseDate: String?,
+    val primaryGenreName: String?,
+    val country: String?,
+    val trackTimeMillis: Long?
 )
 
 ===== FILE: ./java\com\example\yandexmedia\data\domain\parseTracks.kt =====
@@ -471,19 +695,6 @@ class SearchHistory(private val sharedPreferences: SharedPreferences) {
 
 }
 
-
-===== FILE: ./java\com\example\yandexmedia\data\interactor\PlaylistsInteractor.kt =====
-
-package com.example.yandexmedia.domain.interactor
-
-import com.example.yandexmedia.domain.model.Playlist
-import kotlinx.coroutines.flow.Flow
-
-interface PlaylistsInteractor {
-    fun getPlaylists(): Flow<List<Playlist>>
-    suspend fun createPlaylist(name: String, description: String, coverPath: String?)
-    suspend fun addTrackToPlaylist(playlistId: Long, trackId: Long): Boolean
-}
 
 ===== FILE: ./java\com\example\yandexmedia\data\interactor\SearchHistoryInteractorImpl.kt =====
 
@@ -625,101 +836,38 @@ class FavoritesRepositoryImpl(
 
 package com.example.yandexmedia.data.repository
 
-import android.content.SharedPreferences
+import com.example.yandexmedia.data.db.PlaylistDbConverter
+import com.example.yandexmedia.data.db.PlaylistsDao
 import com.example.yandexmedia.domain.model.Playlist
+import com.example.yandexmedia.domain.model.Track
 import com.example.yandexmedia.domain.repository.PlaylistsRepository
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import org.json.JSONArray
-import org.json.JSONObject
+import kotlinx.coroutines.flow.map
 
 class PlaylistsRepositoryImpl(
-    private val prefs: SharedPreferences
+    private val dao: PlaylistsDao,
+    private val converter: PlaylistDbConverter
 ) : PlaylistsRepository {
 
-    private val playlistsFlow = MutableStateFlow(readPlaylists())
-
-    override fun getPlaylists(): Flow<List<Playlist>> = playlistsFlow
+    override fun getPlaylists(): Flow<List<Playlist>> {
+        return dao.getPlaylists().map { entities ->
+            entities.map { converter.map(it) }
+        }
+    }
 
     override suspend fun addPlaylist(playlist: Playlist) {
-        val updated = listOf(playlist) + playlistsFlow.value
-        savePlaylists(updated)
-        playlistsFlow.value = updated
+        dao.insertPlaylist(converter.map(playlist))
     }
 
     override suspend fun addTrackToPlaylist(
         playlistId: Long,
-        trackId: Long
+        track: Track
     ): Boolean {
-        val playlists = playlistsFlow.value.toMutableList()
-        val playlistIndex = playlists.indexOfFirst { it.id == playlistId }
 
-        if (playlistIndex == -1) return false
-
-        val playlist = playlists[playlistIndex]
-
-        if (playlist.trackIds.contains(trackId)) {
-            return false
-        }
-
-        val updatedPlaylist = playlist.copy(
-            trackIds = playlist.trackIds + trackId,
-            tracksCount = playlist.tracksCount + 1
+        return dao.addTrackToPlaylist(
+            playlistId = playlistId,
+            track = converter.map(track)
         )
-
-        playlists[playlistIndex] = updatedPlaylist
-
-        savePlaylists(playlists)
-        playlistsFlow.value = playlists
-
-        return true
-    }
-
-    private fun readPlaylists(): List<Playlist> {
-        val json = prefs.getString(KEY_PLAYLISTS, null) ?: return emptyList()
-        val array = JSONArray(json)
-
-        return List(array.length()) { index ->
-            val obj = array.getJSONObject(index)
-            val trackIdsJson = obj.optJSONArray("trackIds") ?: JSONArray()
-            val trackIds = List(trackIdsJson.length()) { i ->
-                trackIdsJson.getLong(i)
-            }
-
-            Playlist(
-                id = obj.optLong("id"),
-                name = obj.optString("name"),
-                description = obj.optString("description"),
-                coverPath = obj.optString("coverPath").takeIf { it.isNotBlank() },
-                tracksCount = obj.optInt("tracksCount"),
-                trackIds = trackIds
-            )
-        }
-    }
-
-    private fun savePlaylists(playlists: List<Playlist>) {
-        val array = JSONArray()
-
-        playlists.forEach { playlist ->
-            array.put(
-                JSONObject().apply {
-                    put("id", playlist.id)
-                    put("name", playlist.name)
-                    put("description", playlist.description)
-                    put("coverPath", playlist.coverPath)
-                    put("tracksCount", playlist.tracksCount)
-                    put("trackIds", JSONArray(playlist.trackIds))
-                }
-            )
-        }
-
-        prefs.edit()
-            .putString(KEY_PLAYLISTS, array.toString())
-            .apply()
-    }
-
-    private companion object {
-        const val KEY_PLAYLISTS = "playlists"
     }
 }
 
@@ -967,11 +1115,36 @@ class GetSearchHistoryInteractor(
 }
 
 
+===== FILE: ./java\com\example\yandexmedia\domain\interactor\PlaylistsInteractor.kt =====
+
+package com.example.yandexmedia.domain.interactor
+
+import com.example.yandexmedia.domain.model.Playlist
+import com.example.yandexmedia.domain.model.Track
+import kotlinx.coroutines.flow.Flow
+
+interface PlaylistsInteractor {
+
+    fun getPlaylists(): Flow<List<Playlist>>
+
+    suspend fun createPlaylist(
+        name: String,
+        description: String,
+        coverPath: String?
+    )
+
+    suspend fun addTrackToPlaylist(
+        playlistId: Long,
+        track: Track
+    ): Boolean
+}
+
 ===== FILE: ./java\com\example\yandexmedia\domain\interactor\PlaylistsInteractorImpl.kt =====
 
 package com.example.yandexmedia.domain.interactor
 
 import com.example.yandexmedia.domain.model.Playlist
+import com.example.yandexmedia.domain.model.Track
 import com.example.yandexmedia.domain.repository.PlaylistsRepository
 import kotlinx.coroutines.flow.Flow
 
@@ -994,17 +1167,19 @@ class PlaylistsInteractorImpl(
                 name = name,
                 description = description,
                 coverPath = coverPath,
-                tracksCount = 0,
-                trackIds = emptyList()
+                tracksCount = 0
             )
         )
     }
 
     override suspend fun addTrackToPlaylist(
         playlistId: Long,
-        trackId: Long
+        track: Track
     ): Boolean {
-        return repository.addTrackToPlaylist(playlistId, trackId)
+        return repository.addTrackToPlaylist(
+            playlistId = playlistId,
+            track = track
+        )
     }
 }
 
@@ -1079,8 +1254,7 @@ data class Playlist(
     val name: String,
     val description: String,
     val coverPath: String?,
-    val tracksCount: Int,
-    val trackIds: List<Long> = emptyList()
+    val tracksCount: Int
 )
 
 ===== FILE: ./java\com\example\yandexmedia\domain\model\Track.kt =====
@@ -1129,12 +1303,19 @@ interface FavoritesRepository {
 package com.example.yandexmedia.domain.repository
 
 import com.example.yandexmedia.domain.model.Playlist
+import com.example.yandexmedia.domain.model.Track
 import kotlinx.coroutines.flow.Flow
 
 interface PlaylistsRepository {
+
     fun getPlaylists(): Flow<List<Playlist>>
+
     suspend fun addPlaylist(playlist: Playlist)
-    suspend fun addTrackToPlaylist(playlistId: Long, trackId: Long): Boolean
+
+    suspend fun addTrackToPlaylist(
+        playlistId: Long,
+        track: Track
+    ): Boolean
 }
 
 ===== FILE: ./java\com\example\yandexmedia\domain\repository\SearchHistoryRepository.kt =====
@@ -1206,6 +1387,16 @@ class PlaylistAdapter : RecyclerView.Adapter<PlaylistAdapter.PlaylistViewHolder>
         fun bind(playlist: Playlist) {
             nameText.text = playlist.name
             countText.text = "${playlist.tracksCount} треков"
+
+            coverImage.post {
+                val size = coverImage.width
+
+                if (size > 0 && coverImage.layoutParams.height != size) {
+                    coverImage.layoutParams = coverImage.layoutParams.apply {
+                        height = size
+                    }
+                }
+            }
 
             Glide.with(itemView.context)
                 .load(playlist.coverPath)
@@ -2130,7 +2321,6 @@ import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
 import android.widget.Button
-import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.ImageView
@@ -2143,21 +2333,25 @@ import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import com.example.yandexmedia.R
+import com.example.yandexmedia.domain.interactor.ThemeInteractor
+import com.example.yandexmedia.presentation.ui.media.viewmodel.CreatePlaylistViewModel
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.textfield.TextInputEditText
+import com.google.android.material.textfield.TextInputLayout
+import org.koin.android.ext.android.inject
+import org.koin.androidx.viewmodel.ext.android.viewModel
 import java.io.File
 import java.io.FileOutputStream
-import com.example.yandexmedia.presentation.ui.media.viewmodel.CreatePlaylistViewModel
-import org.koin.androidx.viewmodel.ext.android.viewModel
-
 
 class CreatePlaylistFragment : Fragment(R.layout.fragment_create_playlist) {
 
     private var selectedCoverUri: Uri? = null
 
-    private lateinit var nameEditText: EditText
-    private lateinit var descriptionEditText: EditText
-    private val viewModel: CreatePlaylistViewModel by viewModel()
+    private lateinit var nameEditText: TextInputEditText
+    private lateinit var descriptionEditText: TextInputEditText
 
+    private val viewModel: CreatePlaylistViewModel by viewModel()
+    private val themeInteractor: ThemeInteractor by inject()
 
     private val imagePickerLauncher =
         registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -2174,8 +2368,16 @@ class CreatePlaylistFragment : Fragment(R.layout.fragment_create_playlist) {
         nameEditText = view.findViewById(R.id.nameEditText)
         descriptionEditText = view.findViewById(R.id.descriptionEditText)
 
+        val nameInputLayout = view.findViewById<TextInputLayout>(R.id.nameInputLayout)
+        val descriptionInputLayout = view.findViewById<TextInputLayout>(R.id.descriptionInputLayout)
+
         val createButton = view.findViewById<Button>(R.id.createButton)
         val coverContainer = view.findViewById<FrameLayout>(R.id.coverContainer)
+
+        setupInputColors(
+            nameInputLayout = nameInputLayout,
+            descriptionInputLayout = descriptionInputLayout
+        )
 
         fun updateButtonState() {
             val isNameFilled = nameEditText.text.toString().isNotBlank()
@@ -2239,6 +2441,30 @@ class CreatePlaylistFragment : Fragment(R.layout.fragment_create_playlist) {
         )
     }
 
+    private fun setupInputColors(
+        nameInputLayout: TextInputLayout,
+        descriptionInputLayout: TextInputLayout
+    ) {
+        val inputColor = ContextCompat.getColor(
+            requireContext(),
+            if (themeInteractor.isDarkTheme()) R.color.white else R.color.black
+        )
+
+        val colorStateList = ColorStateList.valueOf(inputColor)
+
+        nameInputLayout.setBoxStrokeColor(inputColor)
+        descriptionInputLayout.setBoxStrokeColor(inputColor)
+
+        nameInputLayout.hintTextColor = colorStateList
+        descriptionInputLayout.hintTextColor = colorStateList
+
+        nameEditText.setHintTextColor(colorStateList)
+        descriptionEditText.setHintTextColor(colorStateList)
+
+        nameEditText.setTextColor(inputColor)
+        descriptionEditText.setTextColor(inputColor)
+    }
+
     private fun onCreateClicked() {
         val playlistName = nameEditText.text.toString().trim()
         val playlistDescription = descriptionEditText.text.toString().trim()
@@ -2263,6 +2489,7 @@ class CreatePlaylistFragment : Fragment(R.layout.fragment_create_playlist) {
             findNavController().navigateUp()
         }
     }
+
     private fun saveCoverToPrivateStorage(uri: Uri): String {
         val fileName = "playlist_cover_${System.currentTimeMillis()}.jpg"
         val file = File(requireContext().filesDir, fileName)
@@ -2496,7 +2723,6 @@ import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import com.bumptech.glide.Glide
 import com.example.yandexmedia.R
-import com.example.yandexmedia.domain.model.Track
 import com.example.yandexmedia.presentation.viewmodel.PlayerState
 import com.example.yandexmedia.presentation.viewmodel.PlayerViewModel
 import org.koin.androidx.viewmodel.ext.android.viewModel
@@ -2505,6 +2731,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.yandexmedia.presentation.adapter.PlaylistBottomSheetAdapter
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.example.yandexmedia.domain.model.Track
 
 class PlayerFragment : Fragment(R.layout.fragment_player) {
 
@@ -2543,7 +2770,7 @@ class PlayerFragment : Fragment(R.layout.fragment_player) {
         view.findViewById<TextView>(R.id.lengthValue).text = track.trackTime.ifBlank { "—" }
 
         view.findViewById<ImageButton>(R.id.addToPlaylistButton).setOnClickListener {
-            showAddToPlaylistBottomSheet()
+            showAddToPlaylistBottomSheet(track)
         }
         view.findViewById<TextView>(R.id.albumValue).text =
             track.collectionName?.takeIf { it.isNotBlank() } ?: "—"
@@ -2563,20 +2790,33 @@ class PlayerFragment : Fragment(R.layout.fragment_player) {
         favoriteButton.setOnClickListener { viewModel.onFavouriteClicked() }
     }
 
-    private fun showAddToPlaylistBottomSheet() {
+    private fun showAddToPlaylistBottomSheet(track: Track) {
         val dialog = BottomSheetDialog(requireContext())
         val contentView = layoutInflater.inflate(R.layout.bottom_sheet_add_to_playlist, null)
 
         val recyclerView = contentView.findViewById<RecyclerView>(R.id.playlistsRecyclerView)
-        val newPlaylistButton = contentView.findViewById<TextView>(R.id.newPlaylistButton)
+        val newPlaylistButton = contentView.findViewById<ImageButton>(R.id.newPlaylistButton)
 
         val adapter = PlaylistBottomSheetAdapter { playlist ->
-            Toast.makeText(
-                requireContext(),
-                "Добавлено в плейлист ${playlist.name}",
-                Toast.LENGTH_SHORT
-            ).show()
-            dialog.dismiss()
+            viewModel.addTrackToPlaylist(
+                playlistId = playlist.id,
+                track = track
+            ) { isAdded ->
+                if (isAdded) {
+                    dialog.dismiss()
+                    Toast.makeText(
+                        requireContext(),
+                        "Добавлено в плейлист ${playlist.name}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                } else {
+                    Toast.makeText(
+                        requireContext(),
+                        "Трек уже добавлен в плейлист ${playlist.name}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
         }
 
         recyclerView.layoutManager = LinearLayoutManager(requireContext())
@@ -2594,7 +2834,6 @@ class PlayerFragment : Fragment(R.layout.fragment_player) {
         dialog.setContentView(contentView)
         dialog.show()
     }
-
     private fun observeState() {
         viewModel.state.observe(viewLifecycleOwner) { state ->
             playButton.isEnabled = state.isPlayButtonEnabled
@@ -2778,17 +3017,15 @@ import androidx.lifecycle.viewModelScope
 import com.example.yandexmedia.di.MediaPlayerProvider
 import com.example.yandexmedia.domain.interactor.FavoritesInteractor
 import com.example.yandexmedia.domain.interactor.PlaylistsInteractor
-import com.example.yandexmedia.domain.model.Track
 import kotlinx.coroutines.launch
+import com.example.yandexmedia.domain.model.Track
 
 class PlayerViewModel(
     private val handler: Handler,
     private val mediaPlayerProvider: MediaPlayerProvider,
     private val favoritesInteractor: FavoritesInteractor,
-    playlistsInteractor: PlaylistsInteractor
-) : ViewModel() {
-    
     private val playlistsInteractor: PlaylistsInteractor
+) : ViewModel() {
 
     private val _state = MutableLiveData(PlayerState())
     val state: LiveData<PlayerState> = _state
@@ -2811,7 +3048,19 @@ class PlayerViewModel(
             handler.postDelayed(this, 300)
         }
     }
-
+    fun addTrackToPlaylist(
+        playlistId: Long,
+        track: Track,
+        onResult: (Boolean) -> Unit
+    ) {
+        viewModelScope.launch {
+            val isAdded = playlistsInteractor.addTrackToPlaylist(
+                playlistId = playlistId,
+                track = track
+            )
+            onResult(isAdded)
+        }
+    }
     fun prepare(track: Track) {
         currentTrack = track
 
@@ -2917,19 +3166,7 @@ class PlayerViewModel(
     fun release() {
         releasePlayer()
     }
-    fun addTrackToPlaylist(
-        playlistId: Long,
-        trackId: Long,
-        onResult: (Boolean) -> Unit
-    ) {
-        viewModelScope.launch {
-            val isAdded = playlistsInteractor.addTrackToPlaylist(
-                playlistId = playlistId,
-                trackId = trackId
-            )
-            onResult(isAdded)
-        }
-    }
+
     override fun onCleared() {
         releasePlayer()
         super.onCleared()
@@ -3109,8 +3346,30 @@ class SettingsViewModel(
 
 <?xml version="1.0" encoding="utf-8"?>
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:state_checked="true" android:color="@color/color_primary_permomently" />
+    <item android:state_checked="true" android:color="@color/color_black" />
     <item android:color="@color/color_black" />
+</selector>
+
+===== FILE: ./res\color\text_input_box_stroke.xml =====
+
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true" android:color="@color/color_black" />
+    <item android:color="#000000" />
+</selector>
+
+===== FILE: ./res\color\text_input_colors.xml =====
+
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Dark theme -->
+    <item
+        android:color="#FFFFFF"
+        android:state_activated="true" />
+
+    <!-- Light theme -->
+    <item android:color="#000000" />
+
 </selector>
 
 ===== FILE: ./res\drawable\add_image.xml =====
@@ -3120,20 +3379,49 @@ class SettingsViewModel(
     android:height="312dp"
     android:viewportWidth="312"
     android:viewportHeight="312">
+
   <path
       android:strokeWidth="1"
-      android:pathData="M8,0.5L304,0.5A7.5,7.5 0,0 1,311.5 8L311.5,304A7.5,7.5 0,0 1,304 311.5L8,311.5A7.5,7.5 0,0 1,0.5 304L0.5,8A7.5,7.5 0,0 1,8 0.5z"
+      android:strokeColor="#AEAFB4"
+      android:strokeLineCap="butt"
       android:fillColor="#00000000"
-      android:strokeColor="#AEAFB4"/>
+      android:pathData="
+        M8,0.5 L32,0.5
+        M62,0.5 L86,0.5
+        M116,0.5 L140,0.5
+        M170,0.5 L194,0.5
+        M224,0.5 L248,0.5
+        M280,0.5 L304,0.5
+
+        M311.5,8 L311.5,32
+        M311.5,62 L311.5,86
+        M311.5,116 L311.5,140
+        M311.5,170 L311.5,194
+        M311.5,224 L311.5,248
+        M311.5,280 L311.5,304
+
+        M304,311.5 L280,311.5
+        M250,311.5 L226,311.5
+        M196,311.5 L172,311.5
+        M142,311.5 L118,311.5
+        M88,311.5 L64,311.5
+        M34,311.5 L8,311.5
+
+        M0.5,304 L0.5,280
+        M0.5,250 L0.5,226
+        M0.5,196 L0.5,172
+        M0.5,142 L0.5,118
+        M0.5,88 L0.5,64
+        M0.5,34 L0.5,8" />
   <group>
     <clip-path
-        android:pathData="M114,106L198,106A8,8 0,0 1,206 114L206,198A8,8 0,0 1,198 206L114,206A8,8 0,0 1,106 198L106,114A8,8 0,0 1,114 106z"/>
+        android:pathData="M114,106L198,106A8,8 0,0 1,206 114L206,198A8,8 0,0 1,198 206L114,206A8,8 0,0 1,106 198L106,114A8,8 0,0 1,114 106z" />
+
     <path
         android:pathData="M185.17,135.17V147.63C185.17,147.63 176.88,147.67 176.83,147.63V135.17H164.33C164.33,135.17 164.38,126.88 164.33,126.83H176.83V114.33H185.17V126.83H197.67V135.17H185.17ZM172.67,151.83V139.33H160.17V126.83H126.83C122.25,126.83 118.5,130.58 118.5,135.17V185.17C118.5,189.75 122.25,193.5 126.83,193.5H176.83C181.42,193.5 185.17,189.75 185.17,185.17V151.83H172.67ZM126.83,185.17L139.33,168.5L147.67,181L160.17,164.33L176.83,185.17H126.83Z"
-        android:fillColor="#AEAFB4"/>
+        android:fillColor="#AEAFB4" />
   </group>
 </vector>
-
 
 ===== FILE: ./res\drawable\arrow_back.xml =====
 
@@ -4488,7 +4776,7 @@ android:viewportHeight="36">
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="440dp"
-    android:background="@color/color_white"
+    android:background="@color/color_navbar"
     android:orientation="vertical"
     android:paddingTop="8dp">
 
@@ -4508,26 +4796,23 @@ android:viewportHeight="36">
         android:textColor="@color/color_black"
         android:textSize="20sp" />
 
-    <TextView
+    <ImageButton
         android:id="@+id/newPlaylistButton"
-        android:layout_width="wrap_content"
+        android:layout_width="300dp"
         android:layout_height="48dp"
         android:layout_gravity="center_horizontal"
-        android:layout_marginTop="20dp"
-        android:background="@drawable/bg_new_playlist_button"
-        android:fontFamily="@font/ys_display_medium"
-        android:gravity="center"
-        android:paddingStart="20dp"
-        android:paddingEnd="20dp"
-        android:text="Новый плейлист"
-        android:textColor="@color/color_white_text"
-        android:textSize="14sp" />
+        android:layout_marginTop="16dp"
+        android:background="@color/color_navbar"
+        android:contentDescription="@string/new_playlist"
+        android:scaleType="center"
+        android:src="@drawable/new_playlist" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/playlistsRecyclerView"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_marginTop="16dp"
+        android:background="@color/color_navbar"
         android:layout_weight="1" />
 
 </LinearLayout>
@@ -4596,31 +4881,64 @@ android:viewportHeight="36">
 
     </FrameLayout>
 
-    <EditText
-        android:id="@+id/nameEditText"
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/nameInputLayout"
+        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
         android:layout_width="match_parent"
-        android:layout_height="56dp"
+        android:layout_height="wrap_content"
         android:layout_marginTop="24dp"
-        android:background="@drawable/bg_edit_text"
         android:hint="@string/name"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp"
-        android:textColor="@color/color_white_text"
-        android:textColorHint="@color/color_white_text"
-        android:textSize="16sp" />
+        app:boxBackgroundColor="@android:color/transparent"
+        app:boxBackgroundMode="outline"
+        app:boxCornerRadiusBottomEnd="8dp"
+        app:boxCornerRadiusBottomStart="8dp"
+        app:boxCornerRadiusTopEnd="8dp"
+        app:boxCornerRadiusTopStart="8dp"
+        app:boxStrokeWidth="1dp"
+        app:boxStrokeWidthFocused="1dp">
 
-    <EditText
-        android:id="@+id/descriptionEditText"
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/nameEditText"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:backgroundTint="@android:color/transparent"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:textColor="@color/color_white_text"
+            android:textColorHint="@color/playlist_input_color"
+            android:textSize="16sp" />
+
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/descriptionInputLayout"
+        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
         android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:layout_marginTop="16dp"
-        android:background="@drawable/bg_edit_text"
-        android:hint="@string/description"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp"
-        android:textColor="@color/color_white_text"
-        android:textColorHint="@color/color_white_text"
-        android:textSize="16sp" />
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:hint="@string/name"
+        app:boxBackgroundColor="@android:color/transparent"
+        app:boxBackgroundMode="outline"
+        app:boxCornerRadiusBottomEnd="8dp"
+        app:boxCornerRadiusBottomStart="8dp"
+        app:boxCornerRadiusTopEnd="8dp"
+        app:boxCornerRadiusTopStart="8dp"
+        app:boxStrokeWidth="1dp"
+        app:boxStrokeWidthFocused="1dp"
+        >
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/descriptionEditText"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:backgroundTint="@android:color/transparent"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:textColor="@color/color_white_text"
+            android:textColorHint="#AEAFB4"
+            android:textSize="16sp" />
+
+    </com.google.android.material.textfield.TextInputLayout>
 
     <Space
         android:layout_width="match_parent"
@@ -5362,17 +5680,20 @@ android:viewportHeight="36">
 
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_margin="8dp"
     android:orientation="vertical">
 
-    <ImageView
+    <com.google.android.material.imageview.ShapeableImageView
         android:id="@+id/playlistCoverImage"
         android:layout_width="match_parent"
-        android:layout_height="140dp"
+        android:layout_height="0dp"
+        android:adjustViewBounds="true"
         android:scaleType="centerCrop"
-        android:src="@drawable/ic_placeholder" />
+        android:src="@drawable/ic_placeholder"
+        app:shapeAppearanceOverlay="@style/RoundedImage10" />
 
     <TextView
         android:id="@+id/playlistNameText"
@@ -5392,7 +5713,6 @@ android:viewportHeight="36">
         android:maxLines="1"
         android:textColor="@color/color_white_text"
         android:textSize="16sp" />
-
 
 </LinearLayout>
 
@@ -5428,7 +5748,7 @@ android:viewportHeight="36">
             android:ellipsize="end"
             android:fontFamily="@font/ys_display_regular"
             android:maxLines="1"
-            android:textColor="@color/color_black"
+            android:textColor="@color/color_white_text"
             android:textSize="16sp" />
 
         <TextView
@@ -5436,7 +5756,7 @@ android:viewportHeight="36">
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:fontFamily="@font/ys_display_regular"
-            android:textColor="@color/color_track_gray"
+            android:textColor="@color/color_white_text"
             android:textSize="11sp" />
 
     </LinearLayout>
@@ -5702,7 +6022,8 @@ android:viewportHeight="36">
     <color name="color_progressbar">#3772E7</color>
     <color name="color_navbar">#FFFFFFFF</color>
     <color name="color_navbar_line">#E6E8EB</color>
-
+    <color name="playlist_input_color">#AEAFB4</color>
+    <color name="color_playlist_border">#AEAFB4</color>
 </resources>
 
 ===== FILE: ./res\values\dimens.xml =====
@@ -5814,7 +6135,7 @@ android:viewportHeight="36">
     <string name="new_playlist">Новывй плейлист</string>
     <string name="empty_playlists_message">Вы не создали\n ни одного плейлиста</string>
     <string name="title_player">Аудиоплеер</string>
-    <string name="name">Название</string>
+    <string name="name">Название*</string>
     <string name="description">Описание</string>
 
 
@@ -5984,6 +6305,7 @@ android:viewportHeight="36">
     <color name="btn_update">#FFFFFFFF</color>
     <color name="btn_update_text">#000000</color>
     <color name="color_navbar">#1A1B22</color>
+    <color name="playlist_input_color">#FFFFFF</color>
 </resources>
 
 ===== FILE: ./res\values-night\themes.xml =====

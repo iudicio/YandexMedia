@@ -7,7 +7,6 @@ import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
 import android.widget.Button
-import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.ImageView
@@ -20,21 +19,25 @@ import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import com.example.yandexmedia.R
+import com.example.yandexmedia.domain.interactor.ThemeInteractor
+import com.example.yandexmedia.presentation.ui.media.viewmodel.CreatePlaylistViewModel
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.textfield.TextInputEditText
+import com.google.android.material.textfield.TextInputLayout
+import org.koin.android.ext.android.inject
+import org.koin.androidx.viewmodel.ext.android.viewModel
 import java.io.File
 import java.io.FileOutputStream
-import com.example.yandexmedia.presentation.ui.media.viewmodel.CreatePlaylistViewModel
-import org.koin.androidx.viewmodel.ext.android.viewModel
-
 
 class CreatePlaylistFragment : Fragment(R.layout.fragment_create_playlist) {
 
     private var selectedCoverUri: Uri? = null
 
-    private lateinit var nameEditText: EditText
-    private lateinit var descriptionEditText: EditText
-    private val viewModel: CreatePlaylistViewModel by viewModel()
+    private lateinit var nameEditText: TextInputEditText
+    private lateinit var descriptionEditText: TextInputEditText
 
+    private val viewModel: CreatePlaylistViewModel by viewModel()
+    private val themeInteractor: ThemeInteractor by inject()
 
     private val imagePickerLauncher =
         registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -51,8 +54,16 @@ class CreatePlaylistFragment : Fragment(R.layout.fragment_create_playlist) {
         nameEditText = view.findViewById(R.id.nameEditText)
         descriptionEditText = view.findViewById(R.id.descriptionEditText)
 
+        val nameInputLayout = view.findViewById<TextInputLayout>(R.id.nameInputLayout)
+        val descriptionInputLayout = view.findViewById<TextInputLayout>(R.id.descriptionInputLayout)
+
         val createButton = view.findViewById<Button>(R.id.createButton)
         val coverContainer = view.findViewById<FrameLayout>(R.id.coverContainer)
+
+        setupInputColors(
+            nameInputLayout = nameInputLayout,
+            descriptionInputLayout = descriptionInputLayout
+        )
 
         fun updateButtonState() {
             val isNameFilled = nameEditText.text.toString().isNotBlank()
@@ -116,6 +127,30 @@ class CreatePlaylistFragment : Fragment(R.layout.fragment_create_playlist) {
         )
     }
 
+    private fun setupInputColors(
+        nameInputLayout: TextInputLayout,
+        descriptionInputLayout: TextInputLayout
+    ) {
+        val inputColor = ContextCompat.getColor(
+            requireContext(),
+            if (themeInteractor.isDarkTheme()) R.color.white else R.color.black
+        )
+
+        val colorStateList = ColorStateList.valueOf(inputColor)
+
+        nameInputLayout.setBoxStrokeColor(inputColor)
+        descriptionInputLayout.setBoxStrokeColor(inputColor)
+
+        nameInputLayout.hintTextColor = colorStateList
+        descriptionInputLayout.hintTextColor = colorStateList
+
+        nameEditText.setHintTextColor(colorStateList)
+        descriptionEditText.setHintTextColor(colorStateList)
+
+        nameEditText.setTextColor(inputColor)
+        descriptionEditText.setTextColor(inputColor)
+    }
+
     private fun onCreateClicked() {
         val playlistName = nameEditText.text.toString().trim()
         val playlistDescription = descriptionEditText.text.toString().trim()
@@ -140,6 +175,7 @@ class CreatePlaylistFragment : Fragment(R.layout.fragment_create_playlist) {
             findNavController().navigateUp()
         }
     }
+
     private fun saveCoverToPrivateStorage(uri: Uri): String {
         val fileName = "playlist_cover_${System.currentTimeMillis()}.jpg"
         val file = File(requireContext().filesDir, fileName)

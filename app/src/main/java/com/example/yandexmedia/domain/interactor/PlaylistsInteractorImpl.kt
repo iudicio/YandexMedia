@@ -1,6 +1,7 @@
 package com.example.yandexmedia.domain.interactor
 
 import com.example.yandexmedia.domain.model.Playlist
+import com.example.yandexmedia.domain.model.Track
 import com.example.yandexmedia.domain.repository.PlaylistsRepository
 import kotlinx.coroutines.flow.Flow
 
@@ -23,16 +24,18 @@ class PlaylistsInteractorImpl(
                 name = name,
                 description = description,
                 coverPath = coverPath,
-                tracksCount = 0,
-                trackIds = emptyList()
+                tracksCount = 0
             )
         )
     }
 
     override suspend fun addTrackToPlaylist(
         playlistId: Long,
-        trackId: Long
+        track: Track
     ): Boolean {
-        return repository.addTrackToPlaylist(playlistId, trackId)
+        return repository.addTrackToPlaylist(
+            playlistId = playlistId,
+            track = track
+        )
     }
 }

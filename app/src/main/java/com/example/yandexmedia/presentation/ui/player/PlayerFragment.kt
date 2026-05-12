@@ -9,7 +9,6 @@ import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import com.bumptech.glide.Glide
 import com.example.yandexmedia.R
-import com.example.yandexmedia.domain.model.Track
 import com.example.yandexmedia.presentation.viewmodel.PlayerState
 import com.example.yandexmedia.presentation.viewmodel.PlayerViewModel
 import org.koin.androidx.viewmodel.ext.android.viewModel
@@ -18,6 +17,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.yandexmedia.presentation.adapter.PlaylistBottomSheetAdapter
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.example.yandexmedia.domain.model.Track
 
 class PlayerFragment : Fragment(R.layout.fragment_player) {
 
@@ -86,7 +86,7 @@ class PlayerFragment : Fragment(R.layout.fragment_player) {
         val adapter = PlaylistBottomSheetAdapter { playlist ->
             viewModel.addTrackToPlaylist(
                 playlistId = playlist.id,
-                trackId = track.trackId
+                track = track
             ) { isAdded ->
                 if (isAdded) {
                     dialog.dismiss()

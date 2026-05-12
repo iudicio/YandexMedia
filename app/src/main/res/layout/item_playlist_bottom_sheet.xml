@@ -28,7 +28,7 @@
             android:ellipsize="end"
             android:fontFamily="@font/ys_display_regular"
             android:maxLines="1"
-            android:textColor="@color/color_black"
+            android:textColor="@color/color_white_text"
             android:textSize="16sp" />
 
         <TextView
@@ -36,7 +36,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:fontFamily="@font/ys_display_regular"
-            android:textColor="@color/color_track_gray"
+            android:textColor="@color/color_white_text"
             android:textSize="11sp" />
 
     </LinearLayout>

@@ -30,5 +30,6 @@
     <color name="color_progressbar">#3772E7</color>
     <color name="color_navbar">#FFFFFFFF</color>
     <color name="color_navbar_line">#E6E8EB</color>
-
+    <color name="playlist_input_color">#AEAFB4</color>
+    <color name="color_playlist_border">#AEAFB4</color>
 </resources>

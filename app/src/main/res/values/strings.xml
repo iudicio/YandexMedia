@@ -72,7 +72,7 @@
     <string name="new_playlist">Новывй плейлист</string>
     <string name="empty_playlists_message">Вы не создали\n ни одного плейлиста</string>
     <string name="title_player">Аудиоплеер</string>
-    <string name="name">Название</string>
+    <string name="name">Название*</string>
     <string name="description">Описание</string>
 
 

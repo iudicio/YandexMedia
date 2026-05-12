@@ -43,6 +43,16 @@ class PlaylistAdapter : RecyclerView.Adapter<PlaylistAdapter.PlaylistViewHolder>
             nameText.text = playlist.name
             countText.text = "${playlist.tracksCount} треков"
 
+            coverImage.post {
+                val size = coverImage.width
+
+                if (size > 0 && coverImage.layoutParams.height != size) {
+                    coverImage.layoutParams = coverImage.layoutParams.apply {
+                        height = size
+                    }
+                }
+            }
+
             Glide.with(itemView.context)
                 .load(playlist.coverPath)
                 .placeholder(R.drawable.ic_placeholder)

@@ -10,8 +10,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.yandexmedia.di.MediaPlayerProvider
 import com.example.yandexmedia.domain.interactor.FavoritesInteractor
 import com.example.yandexmedia.domain.interactor.PlaylistsInteractor
-import com.example.yandexmedia.domain.model.Track
 import kotlinx.coroutines.launch
+import com.example.yandexmedia.domain.model.Track
 
 class PlayerViewModel(
     private val handler: Handler,
@@ -43,13 +43,13 @@ class PlayerViewModel(
     }
     fun addTrackToPlaylist(
         playlistId: Long,
-        trackId: Long,
+        track: Track,
         onResult: (Boolean) -> Unit
     ) {
         viewModelScope.launch {
             val isAdded = playlistsInteractor.addTrackToPlaylist(
                 playlistId = playlistId,
-                trackId = trackId
+                track = track
             )
             onResult(isAdded)
         }
