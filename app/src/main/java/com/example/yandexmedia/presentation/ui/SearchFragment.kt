@@ -20,6 +20,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.yandexmedia.R
 import com.example.yandexmedia.domain.model.Track
 import com.example.yandexmedia.presentation.adapter.TrackAdapter
+import com.example.yandexmedia.presentation.ui.MainActivity
 import com.example.yandexmedia.presentation.viewmodel.SearchState
 import com.example.yandexmedia.presentation.viewmodel.SearchViewModel
 import kotlinx.coroutines.Job
@@ -61,7 +62,19 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         observeState()
 
         searchEditText.requestFocus()
+        showKeyboard(searchEditText)
+        setBottomNavigationVisible(false)
         showHistoryIfNeeded()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        setBottomNavigationVisible(!searchEditText.hasFocus())
+    }
+
+    override fun onPause() {
+        setBottomNavigationVisible(true)
+        super.onPause()
     }
 
     override fun onDestroyView() {
@@ -123,6 +136,7 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         clearButton.setOnClickListener {
             searchEditText.text.clear()
             hideKeyboard(searchEditText)
+            setBottomNavigationVisible(true)
             searchAdapter.updateTracks(emptyList())
             viewModel.onQueryChanged("")
             showHistoryIfNeeded()
@@ -137,6 +151,8 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         }
 
         searchEditText.setOnFocusChangeListener { _, hasFocus ->
+            setBottomNavigationVisible(!hasFocus)
+
             if (hasFocus && searchEditText.text.isEmpty()) {
                 showHistoryIfNeeded()
             } else {
@@ -145,9 +161,19 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         }
 
         searchEditText.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+            override fun beforeTextChanged(
+                s: CharSequence?,
+                start: Int,
+                count: Int,
+                after: Int
+            ) = Unit
 
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+            override fun onTextChanged(
+                s: CharSequence?,
+                start: Int,
+                before: Int,
+                count: Int
+            ) {
                 searchQueryText = s?.toString() ?: ""
                 clearButton.isVisible = !s.isNullOrEmpty()
 
@@ -226,8 +252,6 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         navController.navigate(R.id.playerFragment, bundle)
     }
 
-    private var lastClickTime = 0L
-
     private fun clickDebounce(): Boolean {
         if (!isClickAllowed) return false
 
@@ -296,8 +320,22 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         historyContainer.isVisible = false
     }
 
+    private fun setBottomNavigationVisible(isVisible: Boolean) {
+        (activity as? MainActivity)?.setBottomNavigationVisible(isVisible)
+    }
+
+    private fun showKeyboard(editText: EditText) {
+        editText.post {
+            val imm = requireContext()
+                .getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.showSoftInput(editText, InputMethodManager.SHOW_IMPLICIT)
+        }
+    }
+
     private fun hideKeyboard(editText: EditText) {
-        val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        val imm = requireContext()
+            .getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
         imm.hideSoftInputFromWindow(editText.windowToken, 0)
+        editText.clearFocus()
     }
 }
