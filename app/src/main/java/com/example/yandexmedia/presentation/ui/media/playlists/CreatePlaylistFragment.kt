@@ -133,7 +133,11 @@ class CreatePlaylistFragment : Fragment(R.layout.fragment_create_playlist) {
     ) {
         val inputColor = ContextCompat.getColor(
             requireContext(),
-            if (themeInteractor.isDarkTheme()) R.color.white else R.color.black
+            if (themeInteractor.isDarkTheme()) {
+                R.color.white
+            } else {
+                R.color.color_playlist
+            }
         )
 
         val colorStateList = ColorStateList.valueOf(inputColor)

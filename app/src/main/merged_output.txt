@@ -1841,6 +1841,7 @@ import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
+import androidx.activity.OnBackPressedCallback
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
@@ -1889,17 +1890,13 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         initHistory()
         initSearchList()
         initListeners()
+        setupBackPressed()
         observeState()
 
         searchEditText.requestFocus()
         showKeyboard(searchEditText)
         setBottomNavigationVisible(false)
         showHistoryIfNeeded()
-    }
-
-    override fun onResume() {
-        super.onResume()
-        setBottomNavigationVisible(!searchEditText.hasFocus())
     }
 
     override fun onPause() {
@@ -1966,7 +1963,6 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         clearButton.setOnClickListener {
             searchEditText.text.clear()
             hideKeyboard(searchEditText)
-            setBottomNavigationVisible(true)
             searchAdapter.updateTracks(emptyList())
             viewModel.onQueryChanged("")
             showHistoryIfNeeded()
@@ -2013,12 +2009,33 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
                     historyContainer.isVisible = false
                 } else {
                     searchAdapter.updateTracks(emptyList())
-                    if (searchEditText.hasFocus()) showHistoryIfNeeded() else showDefaultState()
+
+                    if (searchEditText.hasFocus()) {
+                        showHistoryIfNeeded()
+                    } else {
+                        showDefaultState()
+                    }
                 }
             }
 
             override fun afterTextChanged(s: Editable?) = Unit
         })
+    }
+
+    private fun setupBackPressed() {
+        requireActivity().onBackPressedDispatcher.addCallback(
+            viewLifecycleOwner,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    if (searchEditText.hasFocus()) {
+                        hideKeyboard(searchEditText)
+                    } else {
+                        isEnabled = false
+                        requireActivity().onBackPressedDispatcher.onBackPressed()
+                    }
+                }
+            }
+        )
     }
 
     private fun observeState() {
@@ -3399,8 +3416,8 @@ class SettingsViewModel(
 
 <!-- res/color/text_input_box_stroke_color.xml -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:state_focused="true" android:color="@color/black" />
-    <item android:color="@color/white" />
+    <item android:state_focused="true" android:color="@color/color_gray_light" />
+    <item android:color="@color/color_gray_light" />
 </selector>
 
 ===== FILE: ./res\color\text_input_colors.xml =====
@@ -3423,7 +3440,7 @@ class SettingsViewModel(
 <!-- res/color-night/text_input_box_stroke_color.xml -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_focused="true" android:color="@color/white" />
-    <item android:color="@color/black" />
+    <item android:color="@color/white" />
 </selector>
 
 ===== FILE: ./res\drawable\add_image.xml =====
@@ -4874,143 +4891,155 @@ android:viewportHeight="36">
 ===== FILE: ./res\layout\fragment_create_playlist.xml =====
 
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.core.widget.NestedScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="@color/color_primary"
-    android:paddingStart="16dp"
-    android:paddingEnd="16dp"
-    android:paddingTop="24dp"
-    android:paddingBottom="24dp">
+    android:fillViewport="true"
+    android:background="@color/color_primary">
 
-    <LinearLayout
+    <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
         android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:orientation="horizontal"
-        android:gravity="center_vertical">
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:background="@color/color_primary"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="24dp"
+        android:paddingBottom="24dp">
 
-        <ImageButton
-            android:id="@+id/btnBack"
-            android:layout_width="48dp"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="48dp"
-            android:background="@android:color/transparent"
-            android:contentDescription="@string/back"
-            android:scaleType="center"
-            android:src="@drawable/ic_arrow_back" />
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
 
-        <TextView
-            android:id="@+id/title"
-            android:layout_width="wrap_content"
+            <ImageButton
+                android:id="@+id/btnBack"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="@android:color/transparent"
+                android:contentDescription="@string/back"
+                android:scaleType="center"
+                android:src="@drawable/ic_arrow_back" />
+
+            <TextView
+                android:id="@+id/title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:fontFamily="@font/ys_display_medium"
+                android:text="@string/new_playlist"
+                android:textColor="@color/color_white_text"
+                android:textSize="22sp" />
+
+        </LinearLayout>
+
+        <FrameLayout
+            android:id="@+id/coverContainer"
+            android:layout_width="match_parent"
+            android:layout_height="312dp"
+            android:layout_marginTop="36dp"
+            android:background="@drawable/add_image">
+
+            <com.google.android.material.imageview.ShapeableImageView
+                android:id="@+id/coverImage"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                app:shapeAppearanceOverlay="@style/RoundedImage10" />
+
+            <ImageView
+                android:id="@+id/placeholderImage"
+                android:layout_width="88dp"
+                android:layout_height="88dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_placeholder" />
+
+        </FrameLayout>
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/nameInputLayout"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:fontFamily="@font/ys_display_medium"
-            android:text="@string/new_playlist"
-            android:textColor="@color/color_white_text"
-            android:textSize="22sp" />
+            android:layout_marginTop="24dp"
+            android:hint="@string/name"
+            app:boxBackgroundColor="@android:color/transparent"
+            app:boxBackgroundMode="outline"
+            app:boxCornerRadiusBottomEnd="8dp"
+            app:boxCornerRadiusBottomStart="8dp"
+            app:boxCornerRadiusTopEnd="8dp"
+            app:boxCornerRadiusTopStart="8dp"
+            android:textColor="@color/playlist_input_text_color"
+            android:textColorHint="@color/playlist_input_text_color"
+            app:boxStrokeWidth="1dp"
+            app:boxStrokeColor="@color/text_input_box_stroke_color"
+            app:boxStrokeWidthFocused="1dp">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/nameEditText"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:backgroundTint="@android:color/transparent"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:textSize="16sp" />
+
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/descriptionInputLayout"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            app:boxStrokeColor="@color/text_input_box_stroke_color"
+            android:textColor="@color/playlist_input_text_color"
+            android:textColorHint="@color/playlist_input_text_color"
+            android:hint="@string/name"
+            app:boxBackgroundColor="@android:color/transparent"
+            app:boxBackgroundMode="outline"
+            app:boxCornerRadiusBottomEnd="8dp"
+            app:boxCornerRadiusBottomStart="8dp"
+            app:boxCornerRadiusTopEnd="8dp"
+            app:boxCornerRadiusTopStart="8dp"
+            app:boxStrokeWidth="1dp"
+            app:boxStrokeWidthFocused="1dp"
+            >
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/descriptionEditText"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:backgroundTint="@android:color/transparent"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:textSize="16sp" />
+
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <Space
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <Button
+            android:id="@+id/createButton"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:text="Создать"
+            android:textAllCaps="false"
+            android:enabled="false"
+            android:textColor="@color/white"
+            android:background="@drawable/bg_create_button_disabled" />
 
     </LinearLayout>
 
-    <FrameLayout
-        android:id="@+id/coverContainer"
-        android:layout_width="match_parent"
-        android:layout_height="312dp"
-        android:layout_marginTop="36dp"
-        android:background="@drawable/add_image">
 
-        <com.google.android.material.imageview.ShapeableImageView
-            android:id="@+id/coverImage"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:scaleType="centerCrop"
-            app:shapeAppearanceOverlay="@style/RoundedImage10" />
-
-        <ImageView
-            android:id="@+id/placeholderImage"
-            android:layout_width="88dp"
-            android:layout_height="88dp"
-            android:layout_gravity="center"
-            android:src="@drawable/ic_placeholder" />
-
-    </FrameLayout>
-
-    <com.google.android.material.textfield.TextInputLayout
-        android:id="@+id/nameInputLayout"
-        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
-        android:hint="@string/name"
-        app:boxBackgroundColor="@android:color/transparent"
-        app:boxBackgroundMode="outline"
-        app:boxCornerRadiusBottomEnd="8dp"
-        app:boxCornerRadiusBottomStart="8dp"
-        app:boxCornerRadiusTopEnd="8dp"
-        app:boxCornerRadiusTopStart="8dp"
-        app:boxStrokeWidth="1dp"
-        app:boxStrokeWidthFocused="1dp">
-
-        <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/nameEditText"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:backgroundTint="@android:color/transparent"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
-            android:textColor="@color/color_white_text"
-            android:textColorHint="@color/playlist_input_color"
-            app:boxStrokeColor="@color/text_input_box_stroke_color"
-            android:textSize="16sp" />
-
-    </com.google.android.material.textfield.TextInputLayout>
-
-    <com.google.android.material.textfield.TextInputLayout
-        android:id="@+id/descriptionInputLayout"
-        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
-        android:hint="@string/name"
-        app:boxBackgroundColor="@android:color/transparent"
-        app:boxBackgroundMode="outline"
-        app:boxCornerRadiusBottomEnd="8dp"
-        app:boxCornerRadiusBottomStart="8dp"
-        app:boxCornerRadiusTopEnd="8dp"
-        app:boxCornerRadiusTopStart="8dp"
-        app:boxStrokeWidth="1dp"
-        app:boxStrokeWidthFocused="1dp"
-        >
-
-        <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/descriptionEditText"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:backgroundTint="@android:color/transparent"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
-            android:textColor="@color/color_white_text"
-            android:textColorHint="#AEAFB4"
-            android:textSize="16sp" />
-
-    </com.google.android.material.textfield.TextInputLayout>
-
-    <Space
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1" />
-
-    <Button
-        android:id="@+id/createButton"
-        android:layout_width="match_parent"
-        android:layout_height="44dp"
-        android:text="Создать"
-        android:textAllCaps="false"
-        android:enabled="false"
-        android:textColor="@color/white"
-        android:background="@drawable/bg_create_button_disabled" />
-
-</LinearLayout>
+</androidx.core.widget.NestedScrollView>
 
 ===== FILE: ./res\layout\fragment_favorites_tracks.xml =====
 
@@ -6079,6 +6108,8 @@ android:viewportHeight="36">
     <color name="color_navbar_line">#E6E8EB</color>
     <color name="playlist_input_color">#AEAFB4</color>
     <color name="color_playlist_border">#AEAFB4</color>
+    <color name="playlist_input_text_color">#1A1B22</color>
+
 </resources>
 
 ===== FILE: ./res\values\dimens.xml =====
@@ -6361,6 +6392,8 @@ android:viewportHeight="36">
     <color name="btn_update_text">#000000</color>
     <color name="color_navbar">#1A1B22</color>
     <color name="playlist_input_color">#FFFFFF</color>
+    <color name="playlist_input_text_color">#FFFFFF</color>
+
 </resources>
 
 ===== FILE: ./res\values-night\themes.xml =====

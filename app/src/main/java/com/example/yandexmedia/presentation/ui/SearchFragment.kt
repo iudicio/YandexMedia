@@ -11,6 +11,7 @@ import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
+import androidx.activity.OnBackPressedCallback
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
@@ -59,17 +60,13 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         initHistory()
         initSearchList()
         initListeners()
+        setupBackPressed()
         observeState()
 
         searchEditText.requestFocus()
         showKeyboard(searchEditText)
         setBottomNavigationVisible(false)
         showHistoryIfNeeded()
-    }
-
-    override fun onResume() {
-        super.onResume()
-        setBottomNavigationVisible(!searchEditText.hasFocus())
     }
 
     override fun onPause() {
@@ -136,7 +133,6 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         clearButton.setOnClickListener {
             searchEditText.text.clear()
             hideKeyboard(searchEditText)
-            setBottomNavigationVisible(true)
             searchAdapter.updateTracks(emptyList())
             viewModel.onQueryChanged("")
             showHistoryIfNeeded()
@@ -183,12 +179,33 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
                     historyContainer.isVisible = false
                 } else {
                     searchAdapter.updateTracks(emptyList())
-                    if (searchEditText.hasFocus()) showHistoryIfNeeded() else showDefaultState()
+
+                    if (searchEditText.hasFocus()) {
+                        showHistoryIfNeeded()
+                    } else {
+                        showDefaultState()
+                    }
                 }
             }
 
             override fun afterTextChanged(s: Editable?) = Unit
         })
+    }
+
+    private fun setupBackPressed() {
+        requireActivity().onBackPressedDispatcher.addCallback(
+            viewLifecycleOwner,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    if (searchEditText.hasFocus()) {
+                        hideKeyboard(searchEditText)
+                    } else {
+                        isEnabled = false
+                        requireActivity().onBackPressedDispatcher.onBackPressed()
+                    }
+                }
+            }
+        )
     }
 
     private fun observeState() {
