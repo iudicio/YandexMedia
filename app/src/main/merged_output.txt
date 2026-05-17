@@ -25,7 +25,7 @@
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.YandexMedia"
-            android:windowSoftInputMode="adjustResize">
+            android:windowSoftInputMode="adjustPan">
 
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -1851,7 +1851,6 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.yandexmedia.R
 import com.example.yandexmedia.domain.model.Track
 import com.example.yandexmedia.presentation.adapter.TrackAdapter
-import com.example.yandexmedia.presentation.ui.MainActivity
 import com.example.yandexmedia.presentation.viewmodel.SearchState
 import com.example.yandexmedia.presentation.viewmodel.SearchViewModel
 import kotlinx.coroutines.Job
@@ -1895,13 +1894,7 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
 
         searchEditText.requestFocus()
         showKeyboard(searchEditText)
-        setBottomNavigationVisible(false)
         showHistoryIfNeeded()
-    }
-
-    override fun onPause() {
-        setBottomNavigationVisible(true)
-        super.onPause()
     }
 
     override fun onDestroyView() {
@@ -1977,8 +1970,6 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         }
 
         searchEditText.setOnFocusChangeListener { _, hasFocus ->
-            setBottomNavigationVisible(!hasFocus)
-
             if (hasFocus && searchEditText.text.isEmpty()) {
                 showHistoryIfNeeded()
             } else {
@@ -2072,8 +2063,7 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.history.collect { history ->
-                val shouldShow = searchEditText.hasFocus() &&
-                        searchEditText.text.isEmpty() &&
+                val shouldShow = searchEditText.text.isEmpty() &&
                         history.isNotEmpty()
 
                 if (shouldShow) {
@@ -2116,8 +2106,7 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         viewModel.loadHistory()
         val history = viewModel.history.value
 
-        val shouldShow = searchEditText.hasFocus() &&
-                searchEditText.text.isEmpty() &&
+        val shouldShow = searchEditText.text.isEmpty() &&
                 history.isNotEmpty()
 
         if (shouldShow) {
@@ -2165,10 +2154,6 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         placeholderLayout.isVisible = false
         networkErrorLayout.isVisible = false
         historyContainer.isVisible = false
-    }
-
-    private fun setBottomNavigationVisible(isVisible: Boolean) {
-        (activity as? MainActivity)?.setBottomNavigationVisible(isVisible)
     }
 
     private fun showKeyboard(editText: EditText) {
@@ -2502,7 +2487,11 @@ class CreatePlaylistFragment : Fragment(R.layout.fragment_create_playlist) {
     ) {
         val inputColor = ContextCompat.getColor(
             requireContext(),
-            if (themeInteractor.isDarkTheme()) R.color.white else R.color.black
+            if (themeInteractor.isDarkTheme()) {
+                R.color.white
+            } else {
+                R.color.color_playlist
+            }
         )
 
         val colorStateList = ColorStateList.valueOf(inputColor)
@@ -4655,14 +4644,14 @@ android:viewportHeight="36">
     </LinearLayout>
 
 
-
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/searchResultsRecyclerView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_below="@id/searchCard"
-        android:padding="8dp"
+        android:layout_marginTop="-8dp"
         android:clipToPadding="false"
+        android:padding="8dp"
         android:scrollbars="vertical" />
 
     <LinearLayout

@@ -21,7 +21,6 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.yandexmedia.R
 import com.example.yandexmedia.domain.model.Track
 import com.example.yandexmedia.presentation.adapter.TrackAdapter
-import com.example.yandexmedia.presentation.ui.MainActivity
 import com.example.yandexmedia.presentation.viewmodel.SearchState
 import com.example.yandexmedia.presentation.viewmodel.SearchViewModel
 import kotlinx.coroutines.Job
@@ -65,13 +64,7 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
 
         searchEditText.requestFocus()
         showKeyboard(searchEditText)
-        setBottomNavigationVisible(false)
         showHistoryIfNeeded()
-    }
-
-    override fun onPause() {
-        setBottomNavigationVisible(true)
-        super.onPause()
     }
 
     override fun onDestroyView() {
@@ -147,8 +140,6 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         }
 
         searchEditText.setOnFocusChangeListener { _, hasFocus ->
-            setBottomNavigationVisible(!hasFocus)
-
             if (hasFocus && searchEditText.text.isEmpty()) {
                 showHistoryIfNeeded()
             } else {
@@ -242,8 +233,7 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.history.collect { history ->
-                val shouldShow = searchEditText.hasFocus() &&
-                        searchEditText.text.isEmpty() &&
+                val shouldShow = searchEditText.text.isEmpty() &&
                         history.isNotEmpty()
 
                 if (shouldShow) {
@@ -286,8 +276,7 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         viewModel.loadHistory()
         val history = viewModel.history.value
 
-        val shouldShow = searchEditText.hasFocus() &&
-                searchEditText.text.isEmpty() &&
+        val shouldShow = searchEditText.text.isEmpty() &&
                 history.isNotEmpty()
 
         if (shouldShow) {
@@ -335,10 +324,6 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         placeholderLayout.isVisible = false
         networkErrorLayout.isVisible = false
         historyContainer.isVisible = false
-    }
-
-    private fun setBottomNavigationVisible(isVisible: Boolean) {
-        (activity as? MainActivity)?.setBottomNavigationVisible(isVisible)
     }
 
     private fun showKeyboard(editText: EditText) {
