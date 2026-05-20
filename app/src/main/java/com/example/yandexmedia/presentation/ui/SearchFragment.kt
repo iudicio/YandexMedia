@@ -11,6 +11,7 @@ import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
+import androidx.activity.OnBackPressedCallback
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
@@ -58,9 +59,11 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         initHistory()
         initSearchList()
         initListeners()
+        setupBackPressed()
         observeState()
 
         searchEditText.requestFocus()
+        showKeyboard(searchEditText)
         showHistoryIfNeeded()
     }
 
@@ -145,9 +148,19 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         }
 
         searchEditText.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+            override fun beforeTextChanged(
+                s: CharSequence?,
+                start: Int,
+                count: Int,
+                after: Int
+            ) = Unit
 
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+            override fun onTextChanged(
+                s: CharSequence?,
+                start: Int,
+                before: Int,
+                count: Int
+            ) {
                 searchQueryText = s?.toString() ?: ""
                 clearButton.isVisible = !s.isNullOrEmpty()
 
@@ -157,12 +170,33 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
                     historyContainer.isVisible = false
                 } else {
                     searchAdapter.updateTracks(emptyList())
-                    if (searchEditText.hasFocus()) showHistoryIfNeeded() else showDefaultState()
+
+                    if (searchEditText.hasFocus()) {
+                        showHistoryIfNeeded()
+                    } else {
+                        showDefaultState()
+                    }
                 }
             }
 
             override fun afterTextChanged(s: Editable?) = Unit
         })
+    }
+
+    private fun setupBackPressed() {
+        requireActivity().onBackPressedDispatcher.addCallback(
+            viewLifecycleOwner,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    if (searchEditText.hasFocus()) {
+                        hideKeyboard(searchEditText)
+                    } else {
+                        isEnabled = false
+                        requireActivity().onBackPressedDispatcher.onBackPressed()
+                    }
+                }
+            }
+        )
     }
 
     private fun observeState() {
@@ -199,8 +233,7 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.history.collect { history ->
-                val shouldShow = searchEditText.hasFocus() &&
-                        searchEditText.text.isEmpty() &&
+                val shouldShow = searchEditText.text.isEmpty() &&
                         history.isNotEmpty()
 
                 if (shouldShow) {
@@ -226,8 +259,6 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         navController.navigate(R.id.playerFragment, bundle)
     }
 
-    private var lastClickTime = 0L
-
     private fun clickDebounce(): Boolean {
         if (!isClickAllowed) return false
 
@@ -245,8 +276,7 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         viewModel.loadHistory()
         val history = viewModel.history.value
 
-        val shouldShow = searchEditText.hasFocus() &&
-                searchEditText.text.isEmpty() &&
+        val shouldShow = searchEditText.text.isEmpty() &&
                 history.isNotEmpty()
 
         if (shouldShow) {
@@ -296,8 +326,18 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         historyContainer.isVisible = false
     }
 
+    private fun showKeyboard(editText: EditText) {
+        editText.post {
+            val imm = requireContext()
+                .getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.showSoftInput(editText, InputMethodManager.SHOW_IMPLICIT)
+        }
+    }
+
     private fun hideKeyboard(editText: EditText) {
-        val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        val imm = requireContext()
+            .getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
         imm.hideSoftInputFromWindow(editText.windowToken, 0)
+        editText.clearFocus()
     }
 }

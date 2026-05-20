@@ -1,0 +1,5 @@
+<!-- res/color-night/text_input_box_stroke_color.xml -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true" android:color="@color/white" />
+    <item android:color="@color/white" />
+</selector>

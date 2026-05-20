@@ -24,7 +24,9 @@ class MainActivity : AppCompatActivity() {
         bottomNavigation.setupWithNavController(navController)
 
         navController.addOnDestinationChangedListener { _, destination, _ ->
-            bottomNavigation.isVisible = destination.id != R.id.playerFragment
+            bottomNavigation.isVisible =
+                destination.id != R.id.playerFragment &&
+                        destination.id != R.id.createPlaylistFragment
         }
     }
 
@@ -34,6 +36,8 @@ class MainActivity : AppCompatActivity() {
         val currentDestinationId = navHostFragment?.navController?.currentDestination?.id
 
         bottomNavigation.isVisible =
-            isVisible && currentDestinationId != R.id.playerFragment
+            isVisible &&
+                    currentDestinationId != R.id.playerFragment &&
+                    currentDestinationId != R.id.createPlaylistFragment
     }
 }

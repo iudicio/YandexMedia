@@ -4,6 +4,7 @@
     <color name="color_primary_permomently">#3772E7</color> <!-- Фон главного экрана -->
     <color name="color_primary">#FFFFFF</color> <!-- Фон главного экрана -->
     <color name="color_primary_night">#1A1B22</color>
+
     <color name="color_white">#FFFFFFFF</color>
     <color name="color_black">#FF000000</color>
     <color name="color_gray_light">#E6E8EB</color>
@@ -29,5 +30,8 @@
     <color name="color_progressbar">#3772E7</color>
     <color name="color_navbar">#FFFFFFFF</color>
     <color name="color_navbar_line">#E6E8EB</color>
+    <color name="playlist_input_color">#AEAFB4</color>
+    <color name="color_playlist_border">#AEAFB4</color>
+    <color name="playlist_input_text_color">#1A1B22</color>
 
 </resources>
