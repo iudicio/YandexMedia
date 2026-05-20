@@ -128,32 +128,41 @@ class CreatePlaylistFragment : Fragment(R.layout.fragment_create_playlist) {
     }
 
     private fun setupInputColors(
-        nameInputLayout: TextInputLayout,
-        descriptionInputLayout: TextInputLayout
-    ) {
-        val inputColor = ContextCompat.getColor(
-            requireContext(),
-            if (themeInteractor.isDarkTheme()) {
-                R.color.white
-            } else {
-                R.color.color_playlist
-            }
-        )
+            nameInputLayout: TextInputLayout,
+            descriptionInputLayout: TextInputLayout
+        ) {
+            val textColor = ContextCompat.getColor(
+                requireContext(),
+                if (themeInteractor.isDarkTheme()) {
+                    R.color.white
+                } else {
+                    R.color.color_black
+                }
+            )
 
-        val colorStateList = ColorStateList.valueOf(inputColor)
+            val labelColor = ContextCompat.getColor(
+                requireContext(),
+                if (themeInteractor.isDarkTheme()) {
+                    R.color.white
+                } else {
+                    R.color.color_playlist
+                }
+            )
 
-        nameInputLayout.setBoxStrokeColor(inputColor)
-        descriptionInputLayout.setBoxStrokeColor(inputColor)
+            val labelColorStateList = ColorStateList.valueOf(labelColor)
 
-        nameInputLayout.hintTextColor = colorStateList
-        descriptionInputLayout.hintTextColor = colorStateList
+            nameInputLayout.setBoxStrokeColor(textColor)
+            descriptionInputLayout.setBoxStrokeColor(textColor)
 
-        nameEditText.setHintTextColor(colorStateList)
-        descriptionEditText.setHintTextColor(colorStateList)
+            nameInputLayout.hintTextColor = labelColorStateList
+            descriptionInputLayout.hintTextColor = labelColorStateList
 
-        nameEditText.setTextColor(inputColor)
-        descriptionEditText.setTextColor(inputColor)
-    }
+            nameEditText.setHintTextColor(labelColorStateList)
+            descriptionEditText.setHintTextColor(labelColorStateList)
+
+            nameEditText.setTextColor(textColor)
+            descriptionEditText.setTextColor(textColor)
+        }
 
     private fun onCreateClicked() {
         val playlistName = nameEditText.text.toString().trim()

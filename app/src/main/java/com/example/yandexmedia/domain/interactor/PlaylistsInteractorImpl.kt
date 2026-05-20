@@ -13,6 +13,14 @@ class PlaylistsInteractorImpl(
         return repository.getPlaylists()
     }
 
+    override fun getPlaylistById(playlistId: Long): Flow<Playlist?> {
+        return repository.getPlaylistById(playlistId)
+    }
+
+    override fun getTracksForPlaylist(playlistId: Long): Flow<List<Track>> {
+        return repository.getTracksForPlaylist(playlistId)
+    }
+
     override suspend fun createPlaylist(
         name: String,
         description: String,
@@ -26,6 +34,16 @@ class PlaylistsInteractorImpl(
                 coverPath = coverPath,
                 tracksCount = 0
             )
+        )
+    }
+
+    override suspend fun removeTrackFromPlaylist(
+        playlistId: Long,
+        trackId: Long
+    ): Boolean {
+        return repository.removeTrackFromPlaylist(
+            playlistId = playlistId,
+            trackId = trackId
         )
     }
 

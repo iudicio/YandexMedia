@@ -10,7 +10,9 @@ import com.bumptech.glide.Glide
 import com.example.yandexmedia.R
 import com.example.yandexmedia.domain.model.Playlist
 
-class PlaylistAdapter : RecyclerView.Adapter<PlaylistAdapter.PlaylistViewHolder>() {
+class PlaylistAdapter(
+    private val onPlaylistClick: (Playlist) -> Unit
+) : RecyclerView.Adapter<PlaylistAdapter.PlaylistViewHolder>() {
 
     private val playlists = ArrayList<Playlist>()
 
@@ -22,7 +24,10 @@ class PlaylistAdapter : RecyclerView.Adapter<PlaylistAdapter.PlaylistViewHolder>
     }
 
     override fun onBindViewHolder(holder: PlaylistViewHolder, position: Int) {
-        holder.bind(playlists[position])
+        holder.bind(
+            playlist = playlists[position],
+            onPlaylistClick = onPlaylistClick
+        )
     }
 
     override fun getItemCount(): Int = playlists.size
@@ -39,7 +44,10 @@ class PlaylistAdapter : RecyclerView.Adapter<PlaylistAdapter.PlaylistViewHolder>
         private val nameText: TextView = view.findViewById(R.id.playlistNameText)
         private val countText: TextView = view.findViewById(R.id.playlistTracksCountText)
 
-        fun bind(playlist: Playlist) {
+        fun bind(
+            playlist: Playlist,
+            onPlaylistClick: (Playlist) -> Unit
+        ) {
             nameText.text = playlist.name
             countText.text = "${playlist.tracksCount} треков"
 
@@ -59,6 +67,10 @@ class PlaylistAdapter : RecyclerView.Adapter<PlaylistAdapter.PlaylistViewHolder>
                 .error(R.drawable.ic_placeholder)
                 .centerCrop()
                 .into(coverImage)
+
+            itemView.setOnClickListener {
+                onPlaylistClick(playlist)
+            }
         }
     }
 }

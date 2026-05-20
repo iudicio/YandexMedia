@@ -19,15 +19,36 @@ class PlaylistsRepositoryImpl(
         }
     }
 
+    override fun getPlaylistById(playlistId: Long): Flow<Playlist?> {
+        return dao.getPlaylistById(playlistId).map { entity ->
+            entity?.let { converter.map(it) }
+        }
+    }
+
+    override fun getTracksForPlaylist(playlistId: Long): Flow<List<Track>> {
+        return dao.getTracksForPlaylist(playlistId).map { entities ->
+            entities.map { converter.map(it) }
+        }
+    }
+
     override suspend fun addPlaylist(playlist: Playlist) {
         dao.insertPlaylist(converter.map(playlist))
+    }
+
+    override suspend fun removeTrackFromPlaylist(
+        playlistId: Long,
+        trackId: Long
+    ): Boolean {
+        return dao.removeTrackFromPlaylist(
+            playlistId = playlistId,
+            trackId = trackId
+        )
     }
 
     override suspend fun addTrackToPlaylist(
         playlistId: Long,
         track: Track
     ): Boolean {
-
         return dao.addTrackToPlaylist(
             playlistId = playlistId,
             track = converter.map(track)

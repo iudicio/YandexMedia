@@ -17,6 +17,7 @@ class TrackAdapter(
     private val tracks: ArrayList<Track>,
     private val onTrackClick: ((Track) -> Unit)? = null,
     private val onClearHistoryClick: (() -> Unit)? = null,
+    private val onTrackLongClick: ((Track) -> Unit)? = null,
     private val showFooter: Boolean = false
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
@@ -52,7 +53,10 @@ class TrackAdapter(
                 holder.trackNameTextView.text = track.trackName
                 holder.artistNameTextView.text = track.artistName
                 holder.trackTimeTextView.text = track.trackTime
-
+                holder.itemView.setOnLongClickListener {
+                    onTrackLongClick?.invoke(track)
+                    true
+                }
                 Glide.with(holder.itemView.context)
                     .load(track.artworkUrl100)
                     .placeholder(R.drawable.ic_placeholder)

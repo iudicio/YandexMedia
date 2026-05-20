@@ -82,13 +82,25 @@ import com.example.yandexmedia.data.repository.PlaylistsRepositoryImpl
 import com.example.yandexmedia.data.repository.SearchHistoryRepositoryImpl
 import com.example.yandexmedia.data.repository.SearchRepositoryImpl
 import com.example.yandexmedia.data.repository.ThemeRepository
-import com.example.yandexmedia.domain.interactor.*
-import com.example.yandexmedia.domain.repository.*
+import com.example.yandexmedia.domain.interactor.FavoritesInteractor
+import com.example.yandexmedia.domain.interactor.FavoritesInteractorImpl
+import com.example.yandexmedia.domain.interactor.PlaylistsInteractor
+import com.example.yandexmedia.domain.interactor.PlaylistsInteractorImpl
+import com.example.yandexmedia.domain.interactor.SearchHistoryInteractor
+import com.example.yandexmedia.domain.interactor.SearchHistoryInteractorImpl
+import com.example.yandexmedia.domain.interactor.SearchInteractor
+import com.example.yandexmedia.domain.interactor.SearchInteractorImpl
+import com.example.yandexmedia.domain.interactor.ThemeInteractor
+import com.example.yandexmedia.domain.repository.FavoritesRepository
+import com.example.yandexmedia.domain.repository.PlaylistsRepository
+import com.example.yandexmedia.domain.repository.SearchHistoryRepository
+import com.example.yandexmedia.domain.repository.SearchRepository
 import com.example.yandexmedia.presentation.navigation.ExternalNavigator
 import com.example.yandexmedia.presentation.navigation.ExternalNavigatorImpl
 import com.example.yandexmedia.presentation.ui.media.viewmodel.CreatePlaylistViewModel
 import com.example.yandexmedia.presentation.ui.media.viewmodel.FavoritesTracksViewModel
 import com.example.yandexmedia.presentation.ui.media.viewmodel.MediaLibraryViewModel
+import com.example.yandexmedia.presentation.ui.media.viewmodel.PlaylistViewModel
 import com.example.yandexmedia.presentation.ui.media.viewmodel.PlaylistsViewModel
 import com.example.yandexmedia.presentation.viewmodel.PlayerViewModel
 import com.example.yandexmedia.presentation.viewmodel.SearchViewModel
@@ -237,6 +249,12 @@ val appModule = module {
             playlistsInteractor = get()
         )
     }
+
+    viewModel {
+        PlaylistViewModel(
+            playlistsInteractor = get()
+        )
+    }
 }
 
 ===== FILE: ./java\com\example\yandexmedia\SettingsApp.kt =====
@@ -376,6 +394,22 @@ class PlaylistDbConverter {
             trackTimeMillis = track.trackTimeMillis
         )
     }
+
+    fun map(entity: PlaylistTrackEntity): Track {
+        return Track(
+            trackId = entity.trackId,
+            trackName = entity.trackName,
+            artistName = entity.artistName,
+            trackTime = entity.trackTime,
+            artworkUrl100 = entity.artworkUrl100,
+            previewUrl = entity.previewUrl,
+            collectionName = entity.collectionName,
+            releaseDate = entity.releaseDate,
+            primaryGenreName = entity.primaryGenreName,
+            country = entity.country,
+            trackTimeMillis = entity.trackTimeMillis
+        )
+    }
 }
 
 ===== FILE: ./java\com\example\yandexmedia\data\db\PlaylistsDao.kt =====
@@ -398,36 +432,42 @@ interface PlaylistsDao {
     @Query("SELECT * FROM playlists ORDER BY id DESC")
     fun getPlaylists(): Flow<List<PlaylistEntity>>
 
+    @Query("SELECT * FROM playlists WHERE id = :playlistId LIMIT 1")
+    fun getPlaylistById(playlistId: Long): Flow<PlaylistEntity?>
+
+    @Query(
+        """
+        SELECT playlist_tracks.* FROM playlist_tracks
+        INNER JOIN playlist_track_cross_ref 
+        ON playlist_tracks.trackId = playlist_track_cross_ref.trackId
+        WHERE playlist_track_cross_ref.playlistId = :playlistId
+        """
+    )
+    fun getTracksForPlaylist(playlistId: Long): Flow<List<PlaylistTrackEntity>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertPlaylist(
-        playlist: PlaylistEntity
-    )
+    suspend fun insertPlaylist(playlist: PlaylistEntity)
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
-    suspend fun insertTrack(
-        track: PlaylistTrackEntity
-    )
+    suspend fun insertTrack(track: PlaylistTrackEntity)
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
-    suspend fun insertCrossRef(
-        crossRef: PlaylistTrackCrossRef
-    ): Long
+    suspend fun insertCrossRef(crossRef: PlaylistTrackCrossRef): Long
 
-    @Query("""
+    @Query(
+        """
         UPDATE playlists
         SET tracksCount = tracksCount + 1
         WHERE id = :playlistId
-    """)
-    suspend fun incrementTracksCount(
-        playlistId: Long
+        """
     )
+    suspend fun incrementTracksCount(playlistId: Long)
 
     @Transaction
     suspend fun addTrackToPlaylist(
         playlistId: Long,
         track: PlaylistTrackEntity
     ): Boolean {
-
         insertTrack(track)
 
         val result = insertCrossRef(
@@ -444,6 +484,47 @@ interface PlaylistsDao {
         }
 
         return isAdded
+    }
+    @Query(
+        """
+    DELETE FROM playlist_track_cross_ref
+    WHERE playlistId = :playlistId AND trackId = :trackId
+    """
+    )
+    suspend fun deleteTrackFromPlaylist(
+        playlistId: Long,
+        trackId: Long
+    ): Int
+
+    @Query(
+        """
+    UPDATE playlists
+    SET tracksCount = CASE 
+        WHEN tracksCount > 0 THEN tracksCount - 1 
+        ELSE 0 
+    END
+    WHERE id = :playlistId
+    """
+    )
+    suspend fun decrementTracksCount(playlistId: Long)
+
+    @Transaction
+    suspend fun removeTrackFromPlaylist(
+        playlistId: Long,
+        trackId: Long
+    ): Boolean {
+        val deletedRows = deleteTrackFromPlaylist(
+            playlistId = playlistId,
+            trackId = trackId
+        )
+
+        val isDeleted = deletedRows > 0
+
+        if (isDeleted) {
+            decrementTracksCount(playlistId)
+        }
+
+        return isDeleted
     }
 }
 
@@ -855,15 +936,36 @@ class PlaylistsRepositoryImpl(
         }
     }
 
+    override fun getPlaylistById(playlistId: Long): Flow<Playlist?> {
+        return dao.getPlaylistById(playlistId).map { entity ->
+            entity?.let { converter.map(it) }
+        }
+    }
+
+    override fun getTracksForPlaylist(playlistId: Long): Flow<List<Track>> {
+        return dao.getTracksForPlaylist(playlistId).map { entities ->
+            entities.map { converter.map(it) }
+        }
+    }
+
     override suspend fun addPlaylist(playlist: Playlist) {
         dao.insertPlaylist(converter.map(playlist))
+    }
+
+    override suspend fun removeTrackFromPlaylist(
+        playlistId: Long,
+        trackId: Long
+    ): Boolean {
+        return dao.removeTrackFromPlaylist(
+            playlistId = playlistId,
+            trackId = trackId
+        )
     }
 
     override suspend fun addTrackToPlaylist(
         playlistId: Long,
         track: Track
     ): Boolean {
-
         return dao.addTrackToPlaylist(
             playlistId = playlistId,
             track = converter.map(track)
@@ -1127,6 +1229,15 @@ interface PlaylistsInteractor {
 
     fun getPlaylists(): Flow<List<Playlist>>
 
+    fun getPlaylistById(playlistId: Long): Flow<Playlist?>
+
+    fun getTracksForPlaylist(playlistId: Long): Flow<List<Track>>
+
+    suspend fun removeTrackFromPlaylist(
+        playlistId: Long,
+        trackId: Long
+    ): Boolean
+
     suspend fun createPlaylist(
         name: String,
         description: String,
@@ -1156,6 +1267,14 @@ class PlaylistsInteractorImpl(
         return repository.getPlaylists()
     }
 
+    override fun getPlaylistById(playlistId: Long): Flow<Playlist?> {
+        return repository.getPlaylistById(playlistId)
+    }
+
+    override fun getTracksForPlaylist(playlistId: Long): Flow<List<Track>> {
+        return repository.getTracksForPlaylist(playlistId)
+    }
+
     override suspend fun createPlaylist(
         name: String,
         description: String,
@@ -1169,6 +1288,16 @@ class PlaylistsInteractorImpl(
                 coverPath = coverPath,
                 tracksCount = 0
             )
+        )
+    }
+
+    override suspend fun removeTrackFromPlaylist(
+        playlistId: Long,
+        trackId: Long
+    ): Boolean {
+        return repository.removeTrackFromPlaylist(
+            playlistId = playlistId,
+            trackId = trackId
         )
     }
 
@@ -1310,6 +1439,15 @@ interface PlaylistsRepository {
 
     fun getPlaylists(): Flow<List<Playlist>>
 
+    fun getPlaylistById(playlistId: Long): Flow<Playlist?>
+
+    fun getTracksForPlaylist(playlistId: Long): Flow<List<Track>>
+
+    suspend fun removeTrackFromPlaylist(
+        playlistId: Long,
+        trackId: Long
+    ): Boolean
+
     suspend fun addPlaylist(playlist: Playlist)
 
     suspend fun addTrackToPlaylist(
@@ -1355,7 +1493,9 @@ import com.bumptech.glide.Glide
 import com.example.yandexmedia.R
 import com.example.yandexmedia.domain.model.Playlist
 
-class PlaylistAdapter : RecyclerView.Adapter<PlaylistAdapter.PlaylistViewHolder>() {
+class PlaylistAdapter(
+    private val onPlaylistClick: (Playlist) -> Unit
+) : RecyclerView.Adapter<PlaylistAdapter.PlaylistViewHolder>() {
 
     private val playlists = ArrayList<Playlist>()
 
@@ -1367,7 +1507,10 @@ class PlaylistAdapter : RecyclerView.Adapter<PlaylistAdapter.PlaylistViewHolder>
     }
 
     override fun onBindViewHolder(holder: PlaylistViewHolder, position: Int) {
-        holder.bind(playlists[position])
+        holder.bind(
+            playlist = playlists[position],
+            onPlaylistClick = onPlaylistClick
+        )
     }
 
     override fun getItemCount(): Int = playlists.size
@@ -1384,7 +1527,10 @@ class PlaylistAdapter : RecyclerView.Adapter<PlaylistAdapter.PlaylistViewHolder>
         private val nameText: TextView = view.findViewById(R.id.playlistNameText)
         private val countText: TextView = view.findViewById(R.id.playlistTracksCountText)
 
-        fun bind(playlist: Playlist) {
+        fun bind(
+            playlist: Playlist,
+            onPlaylistClick: (Playlist) -> Unit
+        ) {
             nameText.text = playlist.name
             countText.text = "${playlist.tracksCount} треков"
 
@@ -1404,6 +1550,10 @@ class PlaylistAdapter : RecyclerView.Adapter<PlaylistAdapter.PlaylistViewHolder>
                 .error(R.drawable.ic_placeholder)
                 .centerCrop()
                 .into(coverImage)
+
+            itemView.setOnClickListener {
+                onPlaylistClick(playlist)
+            }
         }
     }
 }
@@ -1494,6 +1644,7 @@ class TrackAdapter(
     private val tracks: ArrayList<Track>,
     private val onTrackClick: ((Track) -> Unit)? = null,
     private val onClearHistoryClick: (() -> Unit)? = null,
+    private val onTrackLongClick: ((Track) -> Unit)? = null,
     private val showFooter: Boolean = false
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
@@ -1529,7 +1680,10 @@ class TrackAdapter(
                 holder.trackNameTextView.text = track.trackName
                 holder.artistNameTextView.text = track.artistName
                 holder.trackTimeTextView.text = track.trackTime
-
+                holder.itemView.setOnLongClickListener {
+                    onTrackLongClick?.invoke(track)
+                    true
+                }
                 Glide.with(holder.itemView.context)
                     .load(track.artworkUrl100)
                     .placeholder(R.drawable.ic_placeholder)
@@ -1766,7 +1920,8 @@ class MainActivity : AppCompatActivity() {
         navController.addOnDestinationChangedListener { _, destination, _ ->
             bottomNavigation.isVisible =
                 destination.id != R.id.playerFragment &&
-                        destination.id != R.id.createPlaylistFragment
+                        destination.id != R.id.createPlaylistFragment &&
+                        destination.id != R.id.playlistFragment
         }
     }
 
@@ -1778,7 +1933,8 @@ class MainActivity : AppCompatActivity() {
         bottomNavigation.isVisible =
             isVisible &&
                     currentDestinationId != R.id.playerFragment &&
-                    currentDestinationId != R.id.createPlaylistFragment
+                    currentDestinationId != R.id.createPlaylistFragment &&
+                    currentDestinationId != R.id.playlistFragment
     }
 }
 
@@ -2482,32 +2638,41 @@ class CreatePlaylistFragment : Fragment(R.layout.fragment_create_playlist) {
     }
 
     private fun setupInputColors(
-        nameInputLayout: TextInputLayout,
-        descriptionInputLayout: TextInputLayout
-    ) {
-        val inputColor = ContextCompat.getColor(
-            requireContext(),
-            if (themeInteractor.isDarkTheme()) {
-                R.color.white
-            } else {
-                R.color.color_playlist
-            }
-        )
+            nameInputLayout: TextInputLayout,
+            descriptionInputLayout: TextInputLayout
+        ) {
+            val textColor = ContextCompat.getColor(
+                requireContext(),
+                if (themeInteractor.isDarkTheme()) {
+                    R.color.white
+                } else {
+                    R.color.color_black
+                }
+            )
 
-        val colorStateList = ColorStateList.valueOf(inputColor)
+            val labelColor = ContextCompat.getColor(
+                requireContext(),
+                if (themeInteractor.isDarkTheme()) {
+                    R.color.white
+                } else {
+                    R.color.color_playlist
+                }
+            )
 
-        nameInputLayout.setBoxStrokeColor(inputColor)
-        descriptionInputLayout.setBoxStrokeColor(inputColor)
+            val labelColorStateList = ColorStateList.valueOf(labelColor)
 
-        nameInputLayout.hintTextColor = colorStateList
-        descriptionInputLayout.hintTextColor = colorStateList
+            nameInputLayout.setBoxStrokeColor(textColor)
+            descriptionInputLayout.setBoxStrokeColor(textColor)
 
-        nameEditText.setHintTextColor(colorStateList)
-        descriptionEditText.setHintTextColor(colorStateList)
+            nameInputLayout.hintTextColor = labelColorStateList
+            descriptionInputLayout.hintTextColor = labelColorStateList
 
-        nameEditText.setTextColor(inputColor)
-        descriptionEditText.setTextColor(inputColor)
-    }
+            nameEditText.setHintTextColor(labelColorStateList)
+            descriptionEditText.setHintTextColor(labelColorStateList)
+
+            nameEditText.setTextColor(textColor)
+            descriptionEditText.setTextColor(textColor)
+        }
 
     private fun onCreateClicked() {
         val playlistName = nameEditText.text.toString().trim()
@@ -2573,6 +2738,357 @@ class CreatePlaylistFragment : Fragment(R.layout.fragment_create_playlist) {
     }
 }
 
+===== FILE: ./java\com\example\yandexmedia\presentation\ui\media\playlists\PlaylistFragment.kt =====
+
+package com.example.yandexmedia.presentation.ui.media.playlists
+
+import android.content.Intent
+import android.os.Bundle
+import android.view.View
+import android.widget.ImageButton
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.TextView
+import android.widget.Toast
+import androidx.core.view.isVisible
+import androidx.fragment.app.Fragment
+import androidx.navigation.fragment.findNavController
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
+import com.example.yandexmedia.R
+import com.example.yandexmedia.domain.model.Playlist
+import com.example.yandexmedia.domain.model.Track
+import com.example.yandexmedia.presentation.adapter.TrackAdapter
+import com.example.yandexmedia.presentation.ui.media.model.PlaylistScreenState
+import com.example.yandexmedia.presentation.ui.media.viewmodel.PlaylistViewModel
+import com.google.android.material.bottomsheet.BottomSheetBehavior
+import org.koin.androidx.viewmodel.ext.android.viewModel
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+
+class PlaylistFragment : Fragment(R.layout.fragment_playlist) {
+
+    private val viewModel: PlaylistViewModel by viewModel()
+
+    private lateinit var bottomSheetBehavior: BottomSheetBehavior<LinearLayout>
+
+    private lateinit var coverImage: ImageView
+    private lateinit var playlistNameText: TextView
+    private lateinit var playlistDescriptionText: TextView
+    private lateinit var playlistInfoText: TextView
+    private lateinit var tracksRecyclerView: RecyclerView
+    private lateinit var emptyText: TextView
+
+    private lateinit var adapter: TrackAdapter
+
+    private var currentPlaylist: Playlist? = null
+    private var currentTracks: List<Track> = emptyList()
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        val playlistId = requireArguments().getLong("playlistId")
+
+        initViews(view)
+        setupBottomSheet(view)
+        initRecyclerView()
+        setupClicks(view)
+        observeState()
+
+        viewModel.loadPlaylist(playlistId)
+    }
+
+    private fun initViews(view: View) {
+        coverImage = view.findViewById(R.id.playlistCoverImage)
+        playlistNameText = view.findViewById(R.id.playlistNameText)
+        playlistDescriptionText = view.findViewById(R.id.playlistDescriptionText)
+        playlistInfoText = view.findViewById(R.id.playlistInfoText)
+        tracksRecyclerView = view.findViewById(R.id.playlistTracksRecyclerView)
+        emptyText = view.findViewById(R.id.emptyTracksText)
+    }
+
+    private fun setupBottomSheet(view: View) {
+        val bottomSheet =
+            view.findViewById<LinearLayout>(R.id.playlistTracksBottomSheet)
+
+        val moreButton =
+            view.findViewById<ImageButton>(R.id.btnMore)
+
+        bottomSheetBehavior = BottomSheetBehavior.from(bottomSheet).apply {
+            isHideable = false
+            skipCollapsed = false
+            state = BottomSheetBehavior.STATE_COLLAPSED
+        }
+
+        view.post {
+            val screenHeight = view.height
+
+            val moreButtonLocation = IntArray(2)
+            val rootLocation = IntArray(2)
+
+            moreButton.getLocationOnScreen(moreButtonLocation)
+            view.getLocationOnScreen(rootLocation)
+
+            val moreButtonBottom =
+                moreButtonLocation[1] - rootLocation[1] + moreButton.height
+
+            val margin = (8 * resources.displayMetrics.density).toInt()
+
+            bottomSheetBehavior.peekHeight =
+                screenHeight - moreButtonBottom - margin
+        }
+
+        bottomSheetBehavior.addBottomSheetCallback(
+            object : BottomSheetBehavior.BottomSheetCallback() {
+
+                override fun onStateChanged(
+                    bottomSheet: View,
+                    newState: Int
+                ) {
+                    if (newState == BottomSheetBehavior.STATE_HIDDEN) {
+                        bottomSheetBehavior.state =
+                            BottomSheetBehavior.STATE_COLLAPSED
+                    }
+                }
+
+                override fun onSlide(
+                    bottomSheet: View,
+                    slideOffset: Float
+                ) = Unit
+            }
+        )
+    }
+    private fun showDeleteTrackDialog(track: Track) {
+        MaterialAlertDialogBuilder(requireContext())
+            .setMessage("Хотите удалить трек?")
+            .setNegativeButton("НЕТ", null)
+            .setPositiveButton("ДА") { _, _ ->
+                viewModel.removeTrackFromPlaylist(track) {
+                    Toast.makeText(
+                        requireContext(),
+                        "Трек удалён из плейлиста",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+            .show()
+    }
+    private fun initRecyclerView() {
+        adapter = TrackAdapter(
+            tracks = arrayListOf(),
+            onTrackClick = { track ->
+                findNavController().navigate(
+                    R.id.playerFragment,
+                    Bundle().apply {
+                        putParcelable("track", track)
+                    }
+                )
+            },
+            onTrackLongClick = { track ->
+                showDeleteTrackDialog(track)
+            },
+            showFooter = false
+        )
+        tracksRecyclerView.layoutManager =
+            LinearLayoutManager(requireContext())
+
+        tracksRecyclerView.adapter = adapter
+    }
+
+    private fun setupClicks(view: View) {
+
+        view.findViewById<ImageButton>(R.id.btnBack)
+            .setOnClickListener {
+
+                findNavController().navigateUp()
+            }
+
+        view.findViewById<ImageButton>(R.id.btnShare)
+            .setOnClickListener {
+
+                sharePlaylist()
+            }
+
+        view.findViewById<ImageButton>(R.id.btnMore)
+            .setOnClickListener {
+
+                Toast.makeText(
+                    requireContext(),
+                    "Меню плейлиста",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+    }
+
+    private fun observeState() {
+
+        viewModel.state.observe(viewLifecycleOwner) { state ->
+
+            when (state) {
+
+                PlaylistScreenState.Loading -> Unit
+
+                PlaylistScreenState.NotFound -> {
+
+                    Toast.makeText(
+                        requireContext(),
+                        "Плейлист не найден",
+                        Toast.LENGTH_SHORT
+                    ).show()
+
+                    findNavController().navigateUp()
+                }
+
+                is PlaylistScreenState.Content -> {
+
+                    currentPlaylist = state.playlist
+                    currentTracks = state.tracks
+
+                    renderContent(
+                        state.playlist,
+                        state.tracks
+                    )
+                }
+            }
+        }
+    }
+
+    private fun renderContent(
+        playlist: Playlist,
+        tracks: List<Track>
+    ) {
+
+        playlistNameText.text = playlist.name
+
+        playlistDescriptionText.text =
+            playlist.description
+
+        playlistDescriptionText.isVisible =
+            playlist.description.isNotBlank()
+
+        playlistInfoText.text =
+            "${getTotalMinutesText(tracks)} • ${
+                getTracksCountText(tracks.size)
+            }"
+
+        Glide.with(requireContext())
+            .load(playlist.coverPath)
+            .placeholder(R.drawable.ic_placeholder)
+            .error(R.drawable.ic_placeholder)
+            .centerCrop()
+            .into(coverImage)
+
+        adapter.updateTracks(tracks)
+
+        tracksRecyclerView.isVisible =
+            tracks.isNotEmpty()
+
+        emptyText.isVisible =
+            tracks.isEmpty()
+    }
+
+    private fun sharePlaylist() {
+
+        val playlist = currentPlaylist ?: return
+
+        if (currentTracks.isEmpty()) {
+
+            Toast.makeText(
+                requireContext(),
+                "В этом плейлисте нет треков, которыми можно поделиться",
+                Toast.LENGTH_SHORT
+            ).show()
+
+            return
+        }
+
+        val text = buildString {
+
+            appendLine(playlist.name)
+
+            if (playlist.description.isNotBlank()) {
+                appendLine(playlist.description)
+            }
+
+            appendLine(
+                getTracksCountText(currentTracks.size)
+            )
+
+            currentTracks.forEachIndexed { index, track ->
+
+                appendLine(
+                    "${index + 1}. " +
+                            "${track.artistName} - " +
+                            "${track.trackName} " +
+                            "(${track.trackTime})"
+                )
+            }
+        }
+
+        val intent = Intent(Intent.ACTION_SEND).apply {
+
+            type = "text/plain"
+
+            putExtra(
+                Intent.EXTRA_TEXT,
+                text
+            )
+        }
+
+        startActivity(
+            Intent.createChooser(
+                intent,
+                "Поделиться плейлистом"
+            )
+        )
+    }
+
+    private fun getTotalMinutesText(
+        tracks: List<Track>
+    ): String {
+
+        val totalMillis =
+            tracks.sumOf { it.trackTimeMillis ?: 0L }
+
+        val minutes = totalMillis / 60000
+
+        val word = when {
+
+            minutes % 10 == 1L &&
+                    minutes % 100 != 11L ->
+                "минута"
+
+            minutes % 10 in 2..4 &&
+                    minutes % 100 !in 12..14 ->
+                "минуты"
+
+            else ->
+                "минут"
+        }
+
+        return "$minutes $word"
+    }
+
+    private fun getTracksCountText(count: Int): String {
+
+        val word = when {
+
+            count % 10 == 1 &&
+                    count % 100 != 11 ->
+                "трек"
+
+            count % 10 in 2..4 &&
+                    count % 100 !in 12..14 ->
+                "трека"
+
+            else ->
+                "треков"
+        }
+
+        return "$count $word"
+    }
+}
+
 ===== FILE: ./java\com\example\yandexmedia\presentation\ui\media\playlists\PlaylistsFragment.kt =====
 
 package com.example.yandexmedia.presentation.ui.media.playlists
@@ -2581,6 +3097,7 @@ import android.os.Bundle
 import android.view.View
 import android.widget.ImageButton
 import android.widget.LinearLayout
+import androidx.core.os.bundleOf
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
@@ -2606,7 +3123,12 @@ class PlaylistsFragment : Fragment(R.layout.fragment_playlists) {
         playlistsRecyclerView = view.findViewById(R.id.playlistsRecyclerView)
         emptyPlaylistsContainer = view.findViewById(R.id.emptyPlaylistsContainer)
 
-        adapter = PlaylistAdapter()
+        adapter = PlaylistAdapter { playlist ->
+            findNavController().navigate(
+                R.id.playlistFragment,
+                bundleOf("playlistId" to playlist.id)
+            )
+        }
 
         playlistsRecyclerView.layoutManager = GridLayoutManager(requireContext(), 2)
         playlistsRecyclerView.adapter = adapter
@@ -2741,6 +3263,78 @@ class PlaylistsViewModel(
             }
         }
     }
+}
+
+===== FILE: ./java\com\example\yandexmedia\presentation\ui\media\viewmodel\PlaylistViewModel.kt =====
+
+package com.example.yandexmedia.presentation.ui.media.viewmodel
+
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.yandexmedia.domain.interactor.PlaylistsInteractor
+import com.example.yandexmedia.presentation.ui.media.model.PlaylistScreenState
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.launch
+
+class PlaylistViewModel(
+    private val playlistsInteractor: PlaylistsInteractor
+) : ViewModel() {
+    private var currentPlaylistId: Long = 0L
+    private val _state = MutableLiveData<PlaylistScreenState>(PlaylistScreenState.Loading)
+    val state: LiveData<PlaylistScreenState> = _state
+    fun removeTrackFromPlaylist(
+        track: Track,
+        onResult: () -> Unit
+    ) {
+        viewModelScope.launch {
+            playlistsInteractor.removeTrackFromPlaylist(
+                playlistId = currentPlaylistId,
+                trackId = track.trackId
+            )
+
+            onResult()
+        }
+    }
+    fun loadPlaylist(playlistId: Long) {
+        currentPlaylistId = playlistId
+
+        viewModelScope.launch {
+            combine(
+                playlistsInteractor.getPlaylistById(playlistId),
+                playlistsInteractor.getTracksForPlaylist(playlistId)
+            ) { playlist, tracks ->
+                if (playlist == null) {
+                    PlaylistScreenState.NotFound
+                } else {
+                    PlaylistScreenState.Content(
+                        playlist = playlist,
+                        tracks = tracks
+                    )
+                }
+            }.collect { screenState ->
+                _state.postValue(screenState)
+            }
+        }
+    }
+}
+
+===== FILE: ./java\com\example\yandexmedia\presentation\ui\model\PlaylistScreenState.kt =====
+
+package com.example.yandexmedia.presentation.ui.media.model
+
+import com.example.yandexmedia.domain.model.Playlist
+import com.example.yandexmedia.domain.model.Track
+
+sealed interface PlaylistScreenState {
+    data object Loading : PlaylistScreenState
+    data object NotFound : PlaylistScreenState
+
+    data class Content(
+        val playlist: Playlist,
+        val tracks: List<Track>
+    ) : PlaylistScreenState
 }
 
 ===== FILE: ./java\com\example\yandexmedia\presentation\ui\model\PlaylistsState.kt =====
@@ -3390,7 +3984,7 @@ class SettingsViewModel(
 
 <?xml version="1.0" encoding="utf-8"?>
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:state_checked="true" android:color="@color/color_black" />
+    <item android:state_checked="true" android:color="@color/color_primary_permomently" />
     <item android:color="@color/color_black" />
 </selector>
 
@@ -3515,6 +4109,14 @@ class SettingsViewModel(
     </item>
 </layer-list>
 
+===== FILE: ./res\drawable\bg_bottom_sheet_handle.xml =====
+
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="@color/color_gray_light" />
+    <corners android:radius="2dp" />
+</shape>
+
 ===== FILE: ./res\drawable\bg_clear_history_button.xml =====
 
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
@@ -3558,6 +4160,16 @@ class SettingsViewModel(
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
     <solid android:color="@color/color_black" />
     <corners android:radius="24dp" />
+</shape>
+
+===== FILE: ./res\drawable\bg_playlist_tracks_sheet.xml =====
+
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="@color/color_navbar" />
+    <corners
+        android:topLeftRadius="16dp"
+        android:topRightRadius="16dp" />
 </shape>
 
 ===== FILE: ./res\drawable\bg_retry_button.xml =====
@@ -3717,6 +4329,14 @@ class SettingsViewModel(
       android:fillColor="#AEAFB4"/>
 </vector>
 
+
+===== FILE: ./res\drawable\ic_launcher.xml =====
+
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@drawable/ic_launcher_background" />
+    <foreground android:drawable="@drawable/ic_launcher_foreground" />
+    <monochrome android:drawable="@drawable/ic_launcher_foreground" />
+</adaptive-icon>
 
 ===== FILE: ./res\drawable\ic_launcher_background.xml =====
 
@@ -3961,6 +4581,20 @@ class SettingsViewModel(
       android:fillColor="#1A1B22"/>
 </vector>
 
+
+===== FILE: ./res\drawable\ic_more_vertical.xml =====
+
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <path
+        android:fillColor="#1A1B22"
+        android:pathData="M12,8C13.1,8 14,7.1 14,6C14,4.9 13.1,4 12,4C10.9,4 10,4.9 10,6C10,7.1 10.9,8 12,8ZM12,10C10.9,10 10,10.9 10,12C10,13.1 10.9,14 12,14C13.1,14 14,13.1 14,12C14,10.9 13.1,10 12,10ZM12,16C10.9,16 10,16.9 10,18C10,19.1 10.9,20 12,20C13.1,20 14,19.1 14,18C14,16.9 13.1,16 12,16Z" />
+
+</vector>
 
 ===== FILE: ./res\drawable\ic_placeholder.xml =====
 
@@ -4988,7 +5622,7 @@ android:viewportHeight="36">
             app:boxStrokeColor="@color/text_input_box_stroke_color"
             android:textColor="@color/playlist_input_text_color"
             android:textColorHint="@color/playlist_input_text_color"
-            android:hint="@string/name"
+            android:hint="@string/description"
             app:boxBackgroundColor="@android:color/transparent"
             app:boxBackgroundMode="outline"
             app:boxCornerRadiusBottomEnd="8dp"
@@ -5370,6 +6004,163 @@ android:viewportHeight="36">
 
 </androidx.core.widget.NestedScrollView>
 
+
+===== FILE: ./res\layout\fragment_playlist.xml =====
+
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/color_white_gray">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/color_white_gray">
+
+        <ImageView
+            android:id="@+id/playlistCoverImage"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:contentDescription="@string/content_album_art"
+            android:scaleType="centerCrop"
+            app:layout_constraintDimensionRatio="1:1"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:src="@drawable/ic_placeholder" />
+
+        <ImageButton
+            android:id="@+id/btnBack"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginStart="4dp"
+            android:layout_marginTop="16dp"
+            android:background="@android:color/transparent"
+            android:contentDescription="@string/back"
+            android:src="@drawable/ic_arrow_back"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <LinearLayout
+            android:id="@+id/playlistInfoContainer"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingStart="16dp"
+            android:paddingTop="24dp"
+            android:paddingEnd="16dp"
+            android:paddingBottom="16dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/playlistCoverImage">
+
+            <TextView
+                android:id="@+id/playlistNameText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/ys_display_medium"
+                android:textColor="@color/color_black"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                tools:text="Best songs 2021" />
+
+            <TextView
+                android:id="@+id/playlistDescriptionText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:fontFamily="@font/ys_display_regular"
+                android:textColor="@color/color_black"
+                android:textSize="18sp"
+                tools:text="2022" />
+
+            <TextView
+                android:id="@+id/playlistInfoText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:fontFamily="@font/ys_display_regular"
+                android:textColor="@color/color_black"
+                android:textSize="18sp"
+                tools:text="300 минут • 98 треков" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                android:layout_marginTop="8dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageButton
+                    android:id="@+id/btnShare"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="@android:color/transparent"
+                    android:contentDescription="Поделиться"
+                    android:src="@drawable/ic_send"
+                    app:tint="@color/color_black" />
+
+                <ImageButton
+                    android:id="@+id/btnMore"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="@android:color/transparent"
+                    android:contentDescription="Меню"
+                    android:src="@drawable/ic_more_vertical"
+                    app:tint="@color/color_black" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <LinearLayout
+        android:id="@+id/playlistTracksBottomSheet"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/bg_playlist_tracks_sheet"
+        android:orientation="vertical"
+        android:paddingTop="8dp"
+        app:behavior_hideable="false"
+        app:behavior_peekHeight="288dp"
+        app:layout_behavior="com.google.android.material.bottomsheet.BottomSheetBehavior">
+
+        <View
+            android:layout_width="48dp"
+            android:layout_height="4dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="16dp"
+            android:background="@drawable/bg_bottom_sheet_handle" />
+
+        <TextView
+            android:id="@+id/emptyTracksText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/ys_display_medium"
+            android:gravity="center"
+            android:padding="24dp"
+            android:text="В этом плейлисте нет треков"
+            android:textColor="@color/color_black"
+            android:textSize="18sp"
+            android:visibility="gone" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/playlistTracksRecyclerView"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:clipToPadding="false"
+            android:paddingBottom="16dp"
+            tools:listitem="@layout/track_list_item" />
+
+    </LinearLayout>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>
 
 ===== FILE: ./res\layout\fragment_playlists.xml =====
 
@@ -5950,15 +6741,6 @@ android:viewportHeight="36">
         android:title="@string/menu_settings" />
 </menu>
 
-===== FILE: ./res\mipmap-anydpi\ic_launcher.xml =====
-
-<?xml version="1.0" encoding="utf-8"?>
-<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-    <background android:drawable="@drawable/ic_launcher_background" />
-    <foreground android:drawable="@drawable/ic_launcher_foreground" />
-    <monochrome android:drawable="@drawable/ic_launcher_foreground" />
-</adaptive-icon>
-
 ===== FILE: ./res\mipmap-anydpi\ic_launcher_round.xml =====
 
 <?xml version="1.0" encoding="utf-8"?>
@@ -5968,7 +6750,7 @@ android:viewportHeight="36">
     <monochrome android:drawable="@drawable/ic_launcher_foreground" />
 </adaptive-icon>
 
-===== FILE: ./res\mipmap-hdpi\ic_launcher.webp =====
+===== FILE: ./res\mipmap-hdpi\ic_launcher.png =====
 
 
 
@@ -5976,7 +6758,7 @@ android:viewportHeight="36">
 
 
 
-===== FILE: ./res\mipmap-mdpi\ic_launcher.webp =====
+===== FILE: ./res\mipmap-mdpi\ic_launcher.png =====
 
 
 
@@ -5984,7 +6766,7 @@ android:viewportHeight="36">
 
 
 
-===== FILE: ./res\mipmap-xhdpi\ic_launcher.webp =====
+===== FILE: ./res\mipmap-xhdpi\ic_launcher.png =====
 
 
 
@@ -5992,7 +6774,7 @@ android:viewportHeight="36">
 
 
 
-===== FILE: ./res\mipmap-xxhdpi\ic_launcher.webp =====
+===== FILE: ./res\mipmap-xxhdpi\ic_launcher.png =====
 
 
 
@@ -6000,7 +6782,7 @@ android:viewportHeight="36">
 
 
 
-===== FILE: ./res\mipmap-xxxhdpi\ic_launcher.webp =====
+===== FILE: ./res\mipmap-xxxhdpi\ic_launcher.png =====
 
 
 
@@ -6059,6 +6841,16 @@ android:viewportHeight="36">
         android:name="com.example.yandexmedia.presentation.ui.media.playlists.CreatePlaylistFragment"
         android:label="@string/new_playlist" />
 
+    <fragment
+        android:id="@+id/playlistFragment"
+        android:name="com.example.yandexmedia.presentation.ui.media.playlists.PlaylistFragment"
+        android:label="Плейлист">
+
+        <argument
+            android:name="playlistId"
+            app:argType="long" />
+    </fragment>
+
 </navigation>
 
 ===== FILE: ./res\values\colors.xml =====
@@ -6092,6 +6884,7 @@ android:viewportHeight="36">
     <color name="btn_update">#000000</color>
     <color name="btn_update_text">#FFFFFF</color>
     <color name="color_playlist">#AEAFB4</color>
+    <color name="color_white_gray">#E0DDDD</color>
     <color name="color_progressbar">#3772E7</color>
     <color name="color_navbar">#FFFFFFFF</color>
     <color name="color_navbar_line">#E6E8EB</color>

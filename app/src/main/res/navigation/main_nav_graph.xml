@@ -47,4 +47,14 @@
         android:name="com.example.yandexmedia.presentation.ui.media.playlists.CreatePlaylistFragment"
         android:label="@string/new_playlist" />
 
+    <fragment
+        android:id="@+id/playlistFragment"
+        android:name="com.example.yandexmedia.presentation.ui.media.playlists.PlaylistFragment"
+        android:label="Плейлист">
+
+        <argument
+            android:name="playlistId"
+            app:argType="long" />
+    </fragment>
+
 </navigation>

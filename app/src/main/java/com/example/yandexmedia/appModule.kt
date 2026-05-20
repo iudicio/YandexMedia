@@ -13,13 +13,25 @@ import com.example.yandexmedia.data.repository.PlaylistsRepositoryImpl
 import com.example.yandexmedia.data.repository.SearchHistoryRepositoryImpl
 import com.example.yandexmedia.data.repository.SearchRepositoryImpl
 import com.example.yandexmedia.data.repository.ThemeRepository
-import com.example.yandexmedia.domain.interactor.*
-import com.example.yandexmedia.domain.repository.*
+import com.example.yandexmedia.domain.interactor.FavoritesInteractor
+import com.example.yandexmedia.domain.interactor.FavoritesInteractorImpl
+import com.example.yandexmedia.domain.interactor.PlaylistsInteractor
+import com.example.yandexmedia.domain.interactor.PlaylistsInteractorImpl
+import com.example.yandexmedia.domain.interactor.SearchHistoryInteractor
+import com.example.yandexmedia.domain.interactor.SearchHistoryInteractorImpl
+import com.example.yandexmedia.domain.interactor.SearchInteractor
+import com.example.yandexmedia.domain.interactor.SearchInteractorImpl
+import com.example.yandexmedia.domain.interactor.ThemeInteractor
+import com.example.yandexmedia.domain.repository.FavoritesRepository
+import com.example.yandexmedia.domain.repository.PlaylistsRepository
+import com.example.yandexmedia.domain.repository.SearchHistoryRepository
+import com.example.yandexmedia.domain.repository.SearchRepository
 import com.example.yandexmedia.presentation.navigation.ExternalNavigator
 import com.example.yandexmedia.presentation.navigation.ExternalNavigatorImpl
 import com.example.yandexmedia.presentation.ui.media.viewmodel.CreatePlaylistViewModel
 import com.example.yandexmedia.presentation.ui.media.viewmodel.FavoritesTracksViewModel
 import com.example.yandexmedia.presentation.ui.media.viewmodel.MediaLibraryViewModel
+import com.example.yandexmedia.presentation.ui.media.viewmodel.PlaylistViewModel
 import com.example.yandexmedia.presentation.ui.media.viewmodel.PlaylistsViewModel
 import com.example.yandexmedia.presentation.viewmodel.PlayerViewModel
 import com.example.yandexmedia.presentation.viewmodel.SearchViewModel
@@ -165,6 +177,12 @@ val appModule = module {
 
     viewModel {
         CreatePlaylistViewModel(
+            playlistsInteractor = get()
+        )
+    }
+
+    viewModel {
+        PlaylistViewModel(
             playlistsInteractor = get()
         )
     }
