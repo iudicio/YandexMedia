@@ -229,10 +229,9 @@ class PlaylistFragment : Fragment(R.layout.fragment_playlist) {
 
     private fun showDeletePlaylistDialog() {
         val dialog = MaterialAlertDialogBuilder(requireContext())
-            .setTitle("Удалить плейлист")
-            .setMessage("Хотите удалить плейлист?")
-            .setNegativeButton("Нет", null)
-            .setPositiveButton("Да") { _, _ ->
+            .setMessage("Хотите удалить плейлист «${currentPlaylist?.name}»?")
+            .setNegativeButton("НЕТ", null)
+            .setPositiveButton("ДА") { _, _ ->
                 viewModel.deletePlaylist {
                     val popped = findNavController().popBackStack(
                         R.id.mediaLibraryFragment,
@@ -247,6 +246,11 @@ class PlaylistFragment : Fragment(R.layout.fragment_playlist) {
             .create()
 
         dialog.setOnShowListener {
+            dialog.window?.setBackgroundDrawableResource(R.color.color_white)
+
+            dialog.findViewById<TextView>(android.R.id.message)
+                ?.setTextColor(requireContext().getColor(R.color.black))
+
             dialog.getButton(android.app.AlertDialog.BUTTON_NEGATIVE)
                 .setTextColor(requireContext().getColor(R.color.color_primary_permomently))
 
@@ -258,7 +262,7 @@ class PlaylistFragment : Fragment(R.layout.fragment_playlist) {
     }
 
     private fun showDeleteTrackDialog(track: Track) {
-        MaterialAlertDialogBuilder(requireContext())
+        val dialog = MaterialAlertDialogBuilder(requireContext())
             .setMessage("Хотите удалить трек?")
             .setNegativeButton("НЕТ", null)
             .setPositiveButton("ДА") { _, _ ->
@@ -270,7 +274,22 @@ class PlaylistFragment : Fragment(R.layout.fragment_playlist) {
                     ).show()
                 }
             }
-            .show()
+            .create()
+
+        dialog.setOnShowListener {
+            dialog.window?.setBackgroundDrawableResource(R.color.color_white)
+
+            dialog.findViewById<TextView>(android.R.id.message)
+                ?.setTextColor(requireContext().getColor(R.color.black))
+
+            dialog.getButton(android.app.AlertDialog.BUTTON_NEGATIVE)
+                .setTextColor(requireContext().getColor(R.color.color_primary_permomently))
+
+            dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE)
+                .setTextColor(requireContext().getColor(R.color.color_primary_permomently))
+        }
+
+        dialog.show()
     }
 
     private fun sharePlaylist() {

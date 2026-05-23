@@ -3116,6 +3116,9 @@ class PlaylistFragment : Fragment(R.layout.fragment_playlist) {
         dialog.setContentView(menuView)
         dialog.setCanceledOnTouchOutside(true)
         dialog.show()
+        dialog.window?.findViewById<View>(
+            com.google.android.material.R.id.design_bottom_sheet
+        )?.setBackgroundResource(android.R.color.transparent)
     }
 
     private fun showDeletePlaylistDialog() {
@@ -4296,6 +4299,19 @@ class SettingsViewModel(
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
     <solid android:color="@color/color_gray_light" />
     <corners android:radius="2dp" />
+</shape>
+
+===== FILE: ./res\drawable\bg_bottom_sheet_menu.xml =====
+
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <solid android:color="@color/color_white" />
+
+    <corners
+        android:topLeftRadius="16dp"
+        android:topRightRadius="16dp" />
+
 </shape>
 
 ===== FILE: ./res\drawable\bg_clear_history_button.xml =====
@@ -5699,7 +5715,7 @@ android:viewportHeight="36">
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@color/color_white"
+    android:background="@drawable/bg_bottom_sheet_menu"
     android:orientation="vertical"
     android:paddingStart="16dp"
     android:paddingTop="8dp"
@@ -5741,7 +5757,7 @@ android:viewportHeight="36">
                 android:ellipsize="end"
                 android:fontFamily="@font/ys_display_regular"
                 android:maxLines="1"
-                android:textColor="@color/color_black"
+                android:textColor="@color/black"
                 android:textSize="16sp"
                 tools:text="Best songs 2021" />
 
@@ -5766,7 +5782,7 @@ android:viewportHeight="36">
         android:fontFamily="@font/ys_display_regular"
         android:gravity="center_vertical"
         android:text="Поделиться"
-        android:textColor="@color/color_black"
+        android:textColor="@color/black"
         android:textSize="16sp" />
 
     <TextView
@@ -5776,7 +5792,7 @@ android:viewportHeight="36">
         android:fontFamily="@font/ys_display_regular"
         android:gravity="center_vertical"
         android:text="Редактировать информацию"
-        android:textColor="@color/color_black"
+        android:textColor="@color/black"
         android:textSize="16sp" />
 
     <TextView
@@ -5786,7 +5802,7 @@ android:viewportHeight="36">
         android:fontFamily="@font/ys_display_regular"
         android:gravity="center_vertical"
         android:text="Удалить плейлист"
-        android:textColor="@color/color_black"
+        android:textColor="@color/black"
         android:textSize="16sp" />
 
 </LinearLayout>
@@ -6294,7 +6310,7 @@ android:viewportHeight="36">
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/color_white_gray">
+    >
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
@@ -6311,6 +6327,7 @@ android:viewportHeight="36">
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
+            android:background="@color/color_white_gray"
             tools:src="@drawable/ic_placeholder" />
 
         <ImageButton
@@ -6343,7 +6360,7 @@ android:viewportHeight="36">
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/ys_display_medium"
-                android:textColor="@color/color_black"
+                android:textColor="@color/black"
                 android:textSize="24sp"
                 android:textStyle="bold"
                 tools:text="Best songs 2021" />
@@ -6354,7 +6371,7 @@ android:viewportHeight="36">
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:fontFamily="@font/ys_display_regular"
-                android:textColor="@color/color_black"
+                android:textColor="@color/black"
                 android:textSize="18sp"
                 tools:text="2022" />
 
@@ -6364,7 +6381,7 @@ android:viewportHeight="36">
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:fontFamily="@font/ys_display_regular"
-                android:textColor="@color/color_black"
+                android:textColor="@color/black"
                 android:textSize="18sp"
                 tools:text="300 минут • 98 треков" />
 
@@ -6382,7 +6399,7 @@ android:viewportHeight="36">
                     android:background="@android:color/transparent"
                     android:contentDescription="Поделиться"
                     android:src="@drawable/ic_send"
-                    app:tint="@color/color_black" />
+                    app:tint="@color/black" />
 
                 <ImageButton
                     android:id="@+id/btnMore"
@@ -6391,7 +6408,7 @@ android:viewportHeight="36">
                     android:background="@android:color/transparent"
                     android:contentDescription="Меню"
                     android:src="@drawable/ic_more_vertical"
-                    app:tint="@color/color_black" />
+                    app:tint="@color/black" />
 
             </LinearLayout>
 
@@ -7124,7 +7141,7 @@ android:viewportHeight="36">
         <argument
             android:name="playlistId"
             app:argType="long"
-            android:defaultValue="-1" />
+            android:defaultValue="-1L" />
     </fragment>
 
     <fragment
@@ -7134,8 +7151,7 @@ android:viewportHeight="36">
 
         <argument
             android:name="playlistId"
-            app:argType="long"
-            android:defaultValue="-1L" />
+            app:argType="long"/>
     </fragment>
 
 </navigation>
