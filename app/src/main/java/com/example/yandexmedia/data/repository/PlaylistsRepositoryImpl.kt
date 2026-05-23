@@ -54,4 +54,22 @@ class PlaylistsRepositoryImpl(
             track = converter.map(track)
         )
     }
+
+    override suspend fun deletePlaylist(playlistId: Long) {
+        dao.deletePlaylist(playlistId)
+    }
+
+    override suspend fun updatePlaylist(
+        playlistId: Long,
+        name: String,
+        description: String,
+        coverPath: String?
+    ) {
+        dao.updatePlaylist(
+            playlistId = playlistId,
+            name = name,
+            description = description,
+            coverPath = coverPath
+        )
+    }
 }

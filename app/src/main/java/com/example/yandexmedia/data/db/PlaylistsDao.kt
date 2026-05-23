@@ -69,11 +69,12 @@ interface PlaylistsDao {
 
         return isAdded
     }
+
     @Query(
         """
-    DELETE FROM playlist_track_cross_ref
-    WHERE playlistId = :playlistId AND trackId = :trackId
-    """
+        DELETE FROM playlist_track_cross_ref
+        WHERE playlistId = :playlistId AND trackId = :trackId
+        """
     )
     suspend fun deleteTrackFromPlaylist(
         playlistId: Long,
@@ -82,13 +83,13 @@ interface PlaylistsDao {
 
     @Query(
         """
-    UPDATE playlists
-    SET tracksCount = CASE 
-        WHEN tracksCount > 0 THEN tracksCount - 1 
-        ELSE 0 
-    END
-    WHERE id = :playlistId
-    """
+        UPDATE playlists
+        SET tracksCount = CASE 
+            WHEN tracksCount > 0 THEN tracksCount - 1 
+            ELSE 0 
+        END
+        WHERE id = :playlistId
+        """
     )
     suspend fun decrementTracksCount(playlistId: Long)
 
@@ -110,4 +111,23 @@ interface PlaylistsDao {
 
         return isDeleted
     }
+
+    @Query("DELETE FROM playlists WHERE id = :playlistId")
+    suspend fun deletePlaylist(playlistId: Long)
+
+    @Query(
+        """
+        UPDATE playlists
+        SET name = :name,
+            description = :description,
+            coverPath = :coverPath
+        WHERE id = :playlistId
+        """
+    )
+    suspend fun updatePlaylist(
+        playlistId: Long,
+        name: String,
+        description: String,
+        coverPath: String?
+    )
 }

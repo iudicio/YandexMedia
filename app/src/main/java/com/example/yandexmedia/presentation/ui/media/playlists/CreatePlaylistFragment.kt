@@ -10,6 +10,7 @@ import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.ImageView
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
@@ -18,6 +19,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
+import com.bumptech.glide.Glide
 import com.example.yandexmedia.R
 import com.example.yandexmedia.domain.interactor.ThemeInteractor
 import com.example.yandexmedia.presentation.ui.media.viewmodel.CreatePlaylistViewModel
@@ -32,9 +34,15 @@ import java.io.FileOutputStream
 class CreatePlaylistFragment : Fragment(R.layout.fragment_create_playlist) {
 
     private var selectedCoverUri: Uri? = null
+    private var existingCoverPath: String? = null
+    private var playlistId: Long = -1L
+
+    private val isEditMode: Boolean
+        get() = playlistId != -1L
 
     private lateinit var nameEditText: TextInputEditText
     private lateinit var descriptionEditText: TextInputEditText
+    private lateinit var createButton: Button
 
     private val viewModel: CreatePlaylistViewModel by viewModel()
     private val themeInteractor: ThemeInteractor by inject()
@@ -51,13 +59,14 @@ class CreatePlaylistFragment : Fragment(R.layout.fragment_create_playlist) {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        playlistId = arguments?.getLong("playlistId", -1L) ?: -1L
+
         nameEditText = view.findViewById(R.id.nameEditText)
         descriptionEditText = view.findViewById(R.id.descriptionEditText)
+        createButton = view.findViewById(R.id.createButton)
 
         val nameInputLayout = view.findViewById<TextInputLayout>(R.id.nameInputLayout)
         val descriptionInputLayout = view.findViewById<TextInputLayout>(R.id.descriptionInputLayout)
-
-        val createButton = view.findViewById<Button>(R.id.createButton)
         val coverContainer = view.findViewById<FrameLayout>(R.id.coverContainer)
 
         setupInputColors(
@@ -65,24 +74,7 @@ class CreatePlaylistFragment : Fragment(R.layout.fragment_create_playlist) {
             descriptionInputLayout = descriptionInputLayout
         )
 
-        fun updateButtonState() {
-            val isNameFilled = nameEditText.text.toString().isNotBlank()
-            createButton.isEnabled = isNameFilled
-
-            val buttonColor = if (isNameFilled) {
-                R.color.color_primary_permomently
-            } else {
-                R.color.color_playlist
-            }
-
-            ViewCompat.setBackgroundTintList(
-                createButton,
-                ColorStateList.valueOf(
-                    ContextCompat.getColor(requireContext(), buttonColor)
-                )
-            )
-        }
-
+        setupMode(view)
         updateButtonState()
 
         nameEditText.addTextChangedListener(object : TextWatcher {
@@ -110,7 +102,11 @@ class CreatePlaylistFragment : Fragment(R.layout.fragment_create_playlist) {
         }
 
         createButton.setOnClickListener {
-            onCreateClicked()
+            if (isEditMode) {
+                onSaveClicked()
+            } else {
+                onCreateClicked()
+            }
         }
 
         view.findViewById<ImageButton>(R.id.btnBack).setOnClickListener {
@@ -125,44 +121,101 @@ class CreatePlaylistFragment : Fragment(R.layout.fragment_create_playlist) {
                 }
             }
         )
+
+        if (isEditMode) {
+            observePlaylist()
+            viewModel.loadPlaylist(playlistId)
+        }
+    }
+
+    private fun setupMode(view: View) {
+        if (isEditMode) {
+            view.findViewById<TextView>(R.id.title).text = "Редактировать"
+            createButton.text = "Сохранить"
+        } else {
+            view.findViewById<TextView>(R.id.title).text = getString(R.string.new_playlist)
+            createButton.text = "Создать"
+        }
+    }
+
+    private fun observePlaylist() {
+        viewModel.playlist.observe(viewLifecycleOwner) { playlist ->
+            playlist ?: return@observe
+
+            existingCoverPath = playlist.coverPath
+
+            nameEditText.setText(playlist.name)
+            descriptionEditText.setText(playlist.description)
+
+            if (!playlist.coverPath.isNullOrBlank()) {
+                view?.findViewById<ImageView>(R.id.placeholderImage)?.isVisible = false
+
+                Glide.with(requireContext())
+                    .load(playlist.coverPath)
+                    .placeholder(R.drawable.ic_placeholder)
+                    .error(R.drawable.ic_placeholder)
+                    .centerCrop()
+                    .into(requireView().findViewById(R.id.coverImage))
+            }
+
+            updateButtonState()
+        }
+    }
+
+    private fun updateButtonState() {
+        val isNameFilled = nameEditText.text.toString().isNotBlank()
+        createButton.isEnabled = isNameFilled
+
+        val buttonColor = if (isNameFilled) {
+            R.color.color_primary_permomently
+        } else {
+            R.color.color_playlist
+        }
+
+        ViewCompat.setBackgroundTintList(
+            createButton,
+            ColorStateList.valueOf(
+                ContextCompat.getColor(requireContext(), buttonColor)
+            )
+        )
     }
 
     private fun setupInputColors(
-            nameInputLayout: TextInputLayout,
-            descriptionInputLayout: TextInputLayout
-        ) {
-            val textColor = ContextCompat.getColor(
-                requireContext(),
-                if (themeInteractor.isDarkTheme()) {
-                    R.color.white
-                } else {
-                    R.color.color_black
-                }
-            )
+        nameInputLayout: TextInputLayout,
+        descriptionInputLayout: TextInputLayout
+    ) {
+        val textColor = ContextCompat.getColor(
+            requireContext(),
+            if (themeInteractor.isDarkTheme()) {
+                R.color.white
+            } else {
+                R.color.color_black
+            }
+        )
 
-            val labelColor = ContextCompat.getColor(
-                requireContext(),
-                if (themeInteractor.isDarkTheme()) {
-                    R.color.white
-                } else {
-                    R.color.color_playlist
-                }
-            )
+        val labelColor = ContextCompat.getColor(
+            requireContext(),
+            if (themeInteractor.isDarkTheme()) {
+                R.color.white
+            } else {
+                R.color.color_playlist
+            }
+        )
 
-            val labelColorStateList = ColorStateList.valueOf(labelColor)
+        val labelColorStateList = ColorStateList.valueOf(labelColor)
 
-            nameInputLayout.setBoxStrokeColor(textColor)
-            descriptionInputLayout.setBoxStrokeColor(textColor)
+        nameInputLayout.setBoxStrokeColor(textColor)
+        descriptionInputLayout.setBoxStrokeColor(textColor)
 
-            nameInputLayout.hintTextColor = labelColorStateList
-            descriptionInputLayout.hintTextColor = labelColorStateList
+        nameInputLayout.hintTextColor = labelColorStateList
+        descriptionInputLayout.hintTextColor = labelColorStateList
 
-            nameEditText.setHintTextColor(labelColorStateList)
-            descriptionEditText.setHintTextColor(labelColorStateList)
+        nameEditText.setHintTextColor(labelColorStateList)
+        descriptionEditText.setHintTextColor(labelColorStateList)
 
-            nameEditText.setTextColor(textColor)
-            descriptionEditText.setTextColor(textColor)
-        }
+        nameEditText.setTextColor(textColor)
+        descriptionEditText.setTextColor(textColor)
+    }
 
     private fun onCreateClicked() {
         val playlistName = nameEditText.text.toString().trim()
@@ -189,6 +242,26 @@ class CreatePlaylistFragment : Fragment(R.layout.fragment_create_playlist) {
         }
     }
 
+    private fun onSaveClicked() {
+        val playlistName = nameEditText.text.toString().trim()
+        val playlistDescription = descriptionEditText.text.toString().trim()
+
+        if (playlistName.isBlank()) return
+
+        val coverPath = selectedCoverUri?.let { uri ->
+            saveCoverToPrivateStorage(uri)
+        } ?: existingCoverPath
+
+        viewModel.updatePlaylist(
+            playlistId = playlistId,
+            name = playlistName,
+            description = playlistDescription,
+            coverPath = coverPath
+        ) {
+            findNavController().navigateUp()
+        }
+    }
+
     private fun saveCoverToPrivateStorage(uri: Uri): String {
         val fileName = "playlist_cover_${System.currentTimeMillis()}.jpg"
         val file = File(requireContext().filesDir, fileName)
@@ -203,6 +276,11 @@ class CreatePlaylistFragment : Fragment(R.layout.fragment_create_playlist) {
     }
 
     private fun onCloseClicked() {
+        if (isEditMode) {
+            findNavController().navigateUp()
+            return
+        }
+
         if (hasUnsavedData()) {
             showConfirmCloseDialog()
         } else {

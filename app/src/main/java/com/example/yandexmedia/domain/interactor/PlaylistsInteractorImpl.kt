@@ -56,4 +56,22 @@ class PlaylistsInteractorImpl(
             track = track
         )
     }
+
+    override suspend fun deletePlaylist(playlistId: Long) {
+        repository.deletePlaylist(playlistId)
+    }
+
+    override suspend fun updatePlaylist(
+        playlistId: Long,
+        name: String,
+        description: String,
+        coverPath: String?
+    ) {
+        repository.updatePlaylist(
+            playlistId = playlistId,
+            name = name,
+            description = description,
+            coverPath = coverPath
+        )
+    }
 }

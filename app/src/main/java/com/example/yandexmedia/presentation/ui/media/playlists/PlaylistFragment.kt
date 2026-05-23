@@ -21,8 +21,9 @@ import com.example.yandexmedia.presentation.adapter.TrackAdapter
 import com.example.yandexmedia.presentation.ui.media.model.PlaylistScreenState
 import com.example.yandexmedia.presentation.ui.media.viewmodel.PlaylistViewModel
 import com.google.android.material.bottomsheet.BottomSheetBehavior
-import org.koin.androidx.viewmodel.ext.android.viewModel
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import org.koin.androidx.viewmodel.ext.android.viewModel
 
 class PlaylistFragment : Fragment(R.layout.fragment_playlist) {
 
@@ -66,11 +67,8 @@ class PlaylistFragment : Fragment(R.layout.fragment_playlist) {
     }
 
     private fun setupBottomSheet(view: View) {
-        val bottomSheet =
-            view.findViewById<LinearLayout>(R.id.playlistTracksBottomSheet)
-
-        val moreButton =
-            view.findViewById<ImageButton>(R.id.btnMore)
+        val bottomSheet = view.findViewById<LinearLayout>(R.id.playlistTracksBottomSheet)
+        val moreButton = view.findViewById<ImageButton>(R.id.btnMore)
 
         bottomSheetBehavior = BottomSheetBehavior.from(bottomSheet).apply {
             isHideable = false
@@ -95,48 +93,8 @@ class PlaylistFragment : Fragment(R.layout.fragment_playlist) {
             bottomSheetBehavior.peekHeight =
                 screenHeight - moreButtonBottom - margin
         }
-
-        bottomSheetBehavior.addBottomSheetCallback(
-            object : BottomSheetBehavior.BottomSheetCallback() {
-
-                override fun onStateChanged(
-                    bottomSheet: View,
-                    newState: Int
-                ) {
-                    if (newState == BottomSheetBehavior.STATE_HIDDEN) {
-                        bottomSheetBehavior.state =
-                            BottomSheetBehavior.STATE_COLLAPSED
-                    }
-                }
-
-                override fun onSlide(
-                    bottomSheet: View,
-                    slideOffset: Float
-                ) = Unit
-            }
-        )
     }
-    private fun showDeleteTrackDialog(track: Track) {
-        val dialog = MaterialAlertDialogBuilder(requireContext())
-            .setMessage("Хотите удалить трек?")
-            .setNegativeButton("НЕТ", null)
-            .setPositiveButton("ДА") { _, _ ->
-                viewModel.removeTrackFromPlaylist(track) {
-                    Toast.makeText(
-                        requireContext(),
-                        "Трек удалён из плейлиста",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-            }
-            .show()
 
-        dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_NEGATIVE)
-            .setTextColor(requireContext().getColor(R.color.color_primary_permomently))
-
-        dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE)
-            .setTextColor(requireContext().getColor(R.color.color_primary_permomently))
-    }
     private fun initRecyclerView() {
         adapter = TrackAdapter(
             tracks = arrayListOf(),
@@ -153,47 +111,31 @@ class PlaylistFragment : Fragment(R.layout.fragment_playlist) {
             },
             showFooter = false
         )
-        tracksRecyclerView.layoutManager =
-            LinearLayoutManager(requireContext())
 
+        tracksRecyclerView.layoutManager = LinearLayoutManager(requireContext())
         tracksRecyclerView.adapter = adapter
     }
 
     private fun setupClicks(view: View) {
+        view.findViewById<ImageButton>(R.id.btnBack).setOnClickListener {
+            findNavController().navigateUp()
+        }
 
-        view.findViewById<ImageButton>(R.id.btnBack)
-            .setOnClickListener {
+        view.findViewById<ImageButton>(R.id.btnShare).setOnClickListener {
+            sharePlaylist()
+        }
 
-                findNavController().navigateUp()
-            }
-
-        view.findViewById<ImageButton>(R.id.btnShare)
-            .setOnClickListener {
-
-                sharePlaylist()
-            }
-
-        view.findViewById<ImageButton>(R.id.btnMore)
-            .setOnClickListener {
-
-                Toast.makeText(
-                    requireContext(),
-                    "Меню плейлиста",
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
+        view.findViewById<ImageButton>(R.id.btnMore).setOnClickListener {
+            showPlaylistMenu()
+        }
     }
 
     private fun observeState() {
-
         viewModel.state.observe(viewLifecycleOwner) { state ->
-
             when (state) {
-
                 PlaylistScreenState.Loading -> Unit
 
                 PlaylistScreenState.NotFound -> {
-
                     Toast.makeText(
                         requireContext(),
                         "Плейлист не найден",
@@ -204,13 +146,12 @@ class PlaylistFragment : Fragment(R.layout.fragment_playlist) {
                 }
 
                 is PlaylistScreenState.Content -> {
-
                     currentPlaylist = state.playlist
                     currentTracks = state.tracks
 
                     renderContent(
-                        state.playlist,
-                        state.tracks
+                        playlist = state.playlist,
+                        tracks = state.tracks
                     )
                 }
             }
@@ -221,19 +162,12 @@ class PlaylistFragment : Fragment(R.layout.fragment_playlist) {
         playlist: Playlist,
         tracks: List<Track>
     ) {
-
         playlistNameText.text = playlist.name
-
-        playlistDescriptionText.text =
-            playlist.description
-
-        playlistDescriptionText.isVisible =
-            playlist.description.isNotBlank()
+        playlistDescriptionText.text = playlist.description
+        playlistDescriptionText.isVisible = playlist.description.isNotBlank()
 
         playlistInfoText.text =
-            "${getTotalMinutesText(tracks)} • ${
-                getTracksCountText(tracks.size)
-            }"
+            "${getTotalMinutesText(tracks)} • ${getTracksCountText(tracks.size)}"
 
         Glide.with(requireContext())
             .load(playlist.coverPath)
@@ -244,59 +178,128 @@ class PlaylistFragment : Fragment(R.layout.fragment_playlist) {
 
         adapter.updateTracks(tracks)
 
-        tracksRecyclerView.isVisible =
-            tracks.isNotEmpty()
+        tracksRecyclerView.isVisible = tracks.isNotEmpty()
+        emptyText.isVisible = tracks.isEmpty()
+    }
 
-        emptyText.isVisible =
-            tracks.isEmpty()
+    private fun showPlaylistMenu() {
+        val playlist = currentPlaylist ?: return
+
+        val dialog = BottomSheetDialog(requireContext())
+        val menuView = layoutInflater.inflate(R.layout.bottom_sheet_playlist_menu, null)
+
+        menuView.findViewById<TextView>(R.id.playlistMenuNameText).text = playlist.name
+        menuView.findViewById<TextView>(R.id.playlistMenuTracksCountText).text =
+            getTracksCountText(currentTracks.size)
+
+        Glide.with(requireContext())
+            .load(playlist.coverPath)
+            .placeholder(R.drawable.ic_placeholder)
+            .error(R.drawable.ic_placeholder)
+            .centerCrop()
+            .into(menuView.findViewById(R.id.playlistMenuCoverImage))
+
+        menuView.findViewById<TextView>(R.id.menuShare).setOnClickListener {
+            dialog.dismiss()
+            sharePlaylist()
+        }
+
+        menuView.findViewById<TextView>(R.id.menuEdit).setOnClickListener {
+            dialog.dismiss()
+            findNavController().navigate(
+                R.id.createPlaylistFragment,
+                Bundle().apply {
+                    putLong("playlistId", playlist.id)
+                }
+            )
+        }
+
+        menuView.findViewById<TextView>(R.id.menuDelete).setOnClickListener {
+            dialog.dismiss()
+            showDeletePlaylistDialog()
+        }
+
+        dialog.setContentView(menuView)
+        dialog.setCanceledOnTouchOutside(true)
+        dialog.show()
+        dialog.window?.findViewById<View>(
+            com.google.android.material.R.id.design_bottom_sheet
+        )?.setBackgroundResource(android.R.color.transparent)
+    }
+
+    private fun showDeletePlaylistDialog() {
+        val dialog = MaterialAlertDialogBuilder(requireContext())
+            .setTitle("Удалить плейлист")
+            .setMessage("Хотите удалить плейлист?")
+            .setNegativeButton("Нет", null)
+            .setPositiveButton("Да") { _, _ ->
+                viewModel.deletePlaylist {
+                    val popped = findNavController().popBackStack(
+                        R.id.mediaLibraryFragment,
+                        false
+                    )
+
+                    if (!popped) {
+                        findNavController().navigate(R.id.mediaLibraryFragment)
+                    }
+                }
+            }
+            .create()
+
+        dialog.setOnShowListener {
+            dialog.getButton(android.app.AlertDialog.BUTTON_NEGATIVE)
+                .setTextColor(requireContext().getColor(R.color.color_primary_permomently))
+
+            dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE)
+                .setTextColor(requireContext().getColor(R.color.color_primary_permomently))
+        }
+
+        dialog.show()
+    }
+
+    private fun showDeleteTrackDialog(track: Track) {
+        MaterialAlertDialogBuilder(requireContext())
+            .setMessage("Хотите удалить трек?")
+            .setNegativeButton("НЕТ", null)
+            .setPositiveButton("ДА") { _, _ ->
+                viewModel.removeTrackFromPlaylist(track) {
+                    Toast.makeText(
+                        requireContext(),
+                        "Трек удалён из плейлиста",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+            .show()
     }
 
     private fun sharePlaylist() {
-
         val playlist = currentPlaylist ?: return
 
         if (currentTracks.isEmpty()) {
-
             Toast.makeText(
                 requireContext(),
-                "В этом плейлисте нет треков, которыми можно поделиться",
+                "В этом плейлисте нет списка треков, которым можно поделиться",
                 Toast.LENGTH_SHORT
             ).show()
-
             return
         }
 
         val text = buildString {
-
             appendLine(playlist.name)
-
-            if (playlist.description.isNotBlank()) {
-                appendLine(playlist.description)
-            }
-
-            appendLine(
-                getTracksCountText(currentTracks.size)
-            )
+            appendLine(playlist.description)
+            appendLine(getTracksCountText(currentTracks.size))
 
             currentTracks.forEachIndexed { index, track ->
-
                 appendLine(
-                    "${index + 1}. " +
-                            "${track.artistName} - " +
-                            "${track.trackName} " +
-                            "(${track.trackTime})"
+                    "${index + 1}. ${track.artistName} - ${track.trackName} (${track.trackTime})"
                 )
             }
         }
 
         val intent = Intent(Intent.ACTION_SEND).apply {
-
             type = "text/plain"
-
-            putExtra(
-                Intent.EXTRA_TEXT,
-                text
-            )
+            putExtra(Intent.EXTRA_TEXT, text)
         }
 
         startActivity(
@@ -307,46 +310,24 @@ class PlaylistFragment : Fragment(R.layout.fragment_playlist) {
         )
     }
 
-    private fun getTotalMinutesText(
-        tracks: List<Track>
-    ): String {
-
-        val totalMillis =
-            tracks.sumOf { it.trackTimeMillis ?: 0L }
-
+    private fun getTotalMinutesText(tracks: List<Track>): String {
+        val totalMillis = tracks.sumOf { it.trackTimeMillis ?: 0L }
         val minutes = totalMillis / 60000
 
         val word = when {
-
-            minutes % 10 == 1L &&
-                    minutes % 100 != 11L ->
-                "минута"
-
-            minutes % 10 in 2..4 &&
-                    minutes % 100 !in 12..14 ->
-                "минуты"
-
-            else ->
-                "минут"
+            minutes % 10 == 1L && minutes % 100 != 11L -> "минута"
+            minutes % 10 in 2..4 && minutes % 100 !in 12..14 -> "минуты"
+            else -> "минут"
         }
 
         return "$minutes $word"
     }
 
     private fun getTracksCountText(count: Int): String {
-
         val word = when {
-
-            count % 10 == 1 &&
-                    count % 100 != 11 ->
-                "трек"
-
-            count % 10 in 2..4 &&
-                    count % 100 !in 12..14 ->
-                "трека"
-
-            else ->
-                "треков"
+            count % 10 == 1 && count % 100 != 11 -> "трек"
+            count % 10 in 2..4 && count % 100 !in 12..14 -> "трека"
+            else -> "треков"
         }
 
         return "$count $word"

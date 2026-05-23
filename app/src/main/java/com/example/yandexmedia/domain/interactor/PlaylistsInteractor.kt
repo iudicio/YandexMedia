@@ -27,4 +27,13 @@ interface PlaylistsInteractor {
         playlistId: Long,
         track: Track
     ): Boolean
+
+    suspend fun deletePlaylist(playlistId: Long)
+
+    suspend fun updatePlaylist(
+        playlistId: Long,
+        name: String,
+        description: String,
+        coverPath: String?
+    )
 }
