@@ -5,25 +5,25 @@ import android.view.View
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.TextView
+import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
-import com.bumptech.glide.Glide
-import com.example.yandexmedia.R
-import com.example.yandexmedia.presentation.viewmodel.PlayerState
-import com.example.yandexmedia.presentation.viewmodel.PlayerViewModel
-import org.koin.androidx.viewmodel.ext.android.viewModel
-import android.widget.Toast
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.example.yandexmedia.presentation.adapter.PlaylistBottomSheetAdapter
-import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.bumptech.glide.Glide
+import com.example.yandexmedia.R
 import com.example.yandexmedia.domain.model.Track
+import com.example.yandexmedia.presentation.adapter.PlaylistBottomSheetAdapter
+import com.example.yandexmedia.presentation.viewmodel.PlayerState
+import com.example.yandexmedia.presentation.viewmodel.PlayerViewModel
+import com.google.android.material.bottomsheet.BottomSheetDialog
+import org.koin.androidx.viewmodel.ext.android.viewModel
 
 class PlayerFragment : Fragment(R.layout.fragment_player) {
 
     private val viewModel: PlayerViewModel by viewModel()
 
-    private lateinit var playButton: ImageButton
+    private lateinit var playButton: PlaybackButtonView
     private lateinit var favoriteButton: ImageButton
     private lateinit var positionText: TextView
 
@@ -53,11 +53,13 @@ class PlayerFragment : Fragment(R.layout.fragment_player) {
 
         view.findViewById<TextView>(R.id.trackName).text = track.trackName
         view.findViewById<TextView>(R.id.artistName).text = track.artistName
-        view.findViewById<TextView>(R.id.lengthValue).text = track.trackTime.ifBlank { "—" }
+        view.findViewById<TextView>(R.id.lengthValue).text =
+            track.trackTime.ifBlank { "—" }
 
         view.findViewById<ImageButton>(R.id.addToPlaylistButton).setOnClickListener {
             showAddToPlaylistBottomSheet(track)
         }
+
         view.findViewById<TextView>(R.id.albumValue).text =
             track.collectionName?.takeIf { it.isNotBlank() } ?: "—"
         view.findViewById<TextView>(R.id.genreValue).text =
@@ -72,16 +74,28 @@ class PlayerFragment : Fragment(R.layout.fragment_player) {
             .placeholder(R.drawable.ic_placeholder)
             .into(view.findViewById<ImageView>(R.id.coverImage))
 
-        playButton.setOnClickListener { viewModel.onPlayPause() }
-        favoriteButton.setOnClickListener { viewModel.onFavouriteClicked() }
+        playButton.setOnClickListener {
+            viewModel.onPlayPause()
+        }
+
+        favoriteButton.setOnClickListener {
+            viewModel.onFavouriteClicked()
+        }
     }
 
     private fun showAddToPlaylistBottomSheet(track: Track) {
         val dialog = BottomSheetDialog(requireContext())
-        val contentView = layoutInflater.inflate(R.layout.bottom_sheet_add_to_playlist, null)
+        val contentView = layoutInflater.inflate(
+            R.layout.bottom_sheet_add_to_playlist,
+            null
+        )
 
-        val recyclerView = contentView.findViewById<RecyclerView>(R.id.playlistsRecyclerView)
-        val newPlaylistButton = contentView.findViewById<ImageButton>(R.id.newPlaylistButton)
+        val recyclerView = contentView.findViewById<RecyclerView>(
+            R.id.playlistsRecyclerView
+        )
+        val newPlaylistButton = contentView.findViewById<ImageButton>(
+            R.id.newPlaylistButton
+        )
 
         val adapter = PlaylistBottomSheetAdapter { playlist ->
             viewModel.addTrackToPlaylist(
@@ -120,36 +134,15 @@ class PlayerFragment : Fragment(R.layout.fragment_player) {
         dialog.setContentView(contentView)
         dialog.show()
     }
+
     private fun observeState() {
         viewModel.state.observe(viewLifecycleOwner) { state ->
             playButton.isEnabled = state.isPlayButtonEnabled
             positionText.text = state.currentPosition
 
-            when (state.playbackState) {
-                PlayerState.PlaybackState.Idle -> {
-                    playButton.setImageResource(R.drawable.play)
-                }
-
-                PlayerState.PlaybackState.Prepared -> {
-                    playButton.setImageResource(R.drawable.play)
-                }
-
-                PlayerState.PlaybackState.Playing -> {
-                    playButton.setImageResource(R.drawable.stop)
-                }
-
-                PlayerState.PlaybackState.Paused -> {
-                    playButton.setImageResource(R.drawable.play)
-                }
-
-                PlayerState.PlaybackState.Completed -> {
-                    playButton.setImageResource(R.drawable.play)
-                }
-
-                PlayerState.PlaybackState.Error -> {
-                    playButton.setImageResource(R.drawable.play)
-                }
-            }
+            playButton.setPlaying(
+                state.playbackState == PlayerState.PlaybackState.Playing
+            )
 
             updateFavouriteButton(state.isFavourite)
         }
@@ -161,6 +154,7 @@ class PlayerFragment : Fragment(R.layout.fragment_player) {
         } else {
             R.drawable.like_button_inactive
         }
+
         favoriteButton.setImageResource(iconRes)
     }
 }
