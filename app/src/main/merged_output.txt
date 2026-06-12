@@ -3123,9 +3123,10 @@ class PlaylistFragment : Fragment(R.layout.fragment_playlist) {
 
     private fun showDeletePlaylistDialog() {
         val dialog = MaterialAlertDialogBuilder(requireContext())
-            .setMessage("Хотите удалить плейлист «${currentPlaylist?.name}»?")
-            .setNegativeButton("НЕТ", null)
-            .setPositiveButton("ДА") { _, _ ->
+            .setTitle("Удалить плейлист")
+            .setMessage("Хотите удалить плейлист?")
+            .setNegativeButton("Нет", null)
+            .setPositiveButton("Да") { _, _ ->
                 viewModel.deletePlaylist {
                     val popped = findNavController().popBackStack(
                         R.id.mediaLibraryFragment,
@@ -3140,11 +3141,6 @@ class PlaylistFragment : Fragment(R.layout.fragment_playlist) {
             .create()
 
         dialog.setOnShowListener {
-            dialog.window?.setBackgroundDrawableResource(R.color.color_white)
-
-            dialog.findViewById<TextView>(android.R.id.message)
-                ?.setTextColor(requireContext().getColor(R.color.black))
-
             dialog.getButton(android.app.AlertDialog.BUTTON_NEGATIVE)
                 .setTextColor(requireContext().getColor(R.color.color_primary_permomently))
 
@@ -3156,7 +3152,7 @@ class PlaylistFragment : Fragment(R.layout.fragment_playlist) {
     }
 
     private fun showDeleteTrackDialog(track: Track) {
-        val dialog = MaterialAlertDialogBuilder(requireContext())
+        MaterialAlertDialogBuilder(requireContext())
             .setMessage("Хотите удалить трек?")
             .setNegativeButton("НЕТ", null)
             .setPositiveButton("ДА") { _, _ ->
@@ -3168,22 +3164,7 @@ class PlaylistFragment : Fragment(R.layout.fragment_playlist) {
                     ).show()
                 }
             }
-            .create()
-
-        dialog.setOnShowListener {
-            dialog.window?.setBackgroundDrawableResource(R.color.color_white)
-
-            dialog.findViewById<TextView>(android.R.id.message)
-                ?.setTextColor(requireContext().getColor(R.color.black))
-
-            dialog.getButton(android.app.AlertDialog.BUTTON_NEGATIVE)
-                .setTextColor(requireContext().getColor(R.color.color_primary_permomently))
-
-            dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE)
-                .setTextColor(requireContext().getColor(R.color.color_primary_permomently))
-        }
-
-        dialog.show()
+            .show()
     }
 
     private fun sharePlaylist() {
@@ -3551,164 +3532,6 @@ sealed interface PlaylistsState {
     data class Content(val playlists: List<Playlist>) : PlaylistsState
 }
 
-===== FILE: ./java\com\example\yandexmedia\presentation\ui\player\PlaybackButtonView.kt =====
-
-package com.example.yandexmedia.presentation.ui.player
-
-import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.Paint
-import android.graphics.RectF
-import android.util.AttributeSet
-import android.view.MotionEvent
-import android.view.View
-import androidx.appcompat.content.res.AppCompatResources
-import androidx.core.graphics.drawable.toBitmap
-import com.example.yandexmedia.R
-
-class PlaybackButtonView @JvmOverloads constructor(
-    context: Context,
-    attrs: AttributeSet? = null,
-    defStyleAttr: Int = 0
-) : View(context, attrs, defStyleAttr) {
-
-    private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val imageRect = RectF()
-
-    private var playBitmap: Bitmap? = null
-    private var pauseBitmap: Bitmap? = null
-    private var isPlaying = false
-
-    init {
-        context.theme.obtainStyledAttributes(
-            attrs,
-            R.styleable.PlaybackButtonView,
-            defStyleAttr,
-            0
-        ).apply {
-            try {
-                val playImageResId = getResourceId(
-                    R.styleable.PlaybackButtonView_playImage,
-                    0
-                )
-                val pauseImageResId = getResourceId(
-                    R.styleable.PlaybackButtonView_pauseImage,
-                    0
-                )
-
-                playBitmap = getBitmapFromResource(playImageResId)
-                pauseBitmap = getBitmapFromResource(pauseImageResId)
-            } finally {
-                recycle()
-            }
-        }
-
-        isClickable = true
-        isFocusable = true
-    }
-
-    override fun onSizeChanged(
-        width: Int,
-        height: Int,
-        oldWidth: Int,
-        oldHeight: Int
-    ) {
-        super.onSizeChanged(width, height, oldWidth, oldHeight)
-        imageRect.set(
-            0f,
-            0f,
-            width.toFloat(),
-            height.toFloat()
-        )
-    }
-
-    override fun onDraw(canvas: Canvas) {
-        super.onDraw(canvas)
-
-        val bitmap = if (isPlaying) {
-            pauseBitmap
-        } else {
-            playBitmap
-        }
-
-        bitmap?.let {
-            canvas.drawBitmap(
-                it,
-                null,
-                imageRect,
-                paint
-            )
-        }
-    }
-
-    override fun onTouchEvent(event: MotionEvent): Boolean {
-        if (!isEnabled) {
-            return false
-        }
-
-        return when (event.action) {
-            MotionEvent.ACTION_DOWN -> {
-                true
-            }
-
-            MotionEvent.ACTION_UP -> {
-                togglePlaybackState()
-                performClick()
-                true
-            }
-
-            else -> {
-                super.onTouchEvent(event)
-            }
-        }
-    }
-
-    override fun performClick(): Boolean {
-        super.performClick()
-        return true
-    }
-
-    fun setPlaying(isPlaying: Boolean) {
-        if (this.isPlaying == isPlaying) {
-            return
-        }
-
-        this.isPlaying = isPlaying
-        invalidate()
-    }
-
-    fun togglePlaybackState() {
-        setPlaying(!isPlaying)
-    }
-
-    private fun getBitmapFromResource(resourceId: Int): Bitmap? {
-        if (resourceId == 0) {
-            return null
-        }
-
-        val drawable = AppCompatResources.getDrawable(
-            context,
-            resourceId
-        ) ?: return null
-
-        val width = drawable.intrinsicWidth.takeIf { it > 0 }
-            ?: DEFAULT_ICON_SIZE
-        val height = drawable.intrinsicHeight.takeIf { it > 0 }
-            ?: DEFAULT_ICON_SIZE
-
-        return drawable.toBitmap(
-            width,
-            height,
-            Bitmap.Config.ARGB_8888
-        )
-    }
-
-    private companion object {
-        const val DEFAULT_ICON_SIZE = 100
-    }
-}
-
 ===== FILE: ./java\com\example\yandexmedia\presentation\ui\player\PlayerFragment.kt =====
 
 package com.example.yandexmedia.presentation.ui.player
@@ -3718,25 +3541,25 @@ import android.view.View
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.TextView
-import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.yandexmedia.R
-import com.example.yandexmedia.domain.model.Track
-import com.example.yandexmedia.presentation.adapter.PlaylistBottomSheetAdapter
 import com.example.yandexmedia.presentation.viewmodel.PlayerState
 import com.example.yandexmedia.presentation.viewmodel.PlayerViewModel
-import com.google.android.material.bottomsheet.BottomSheetDialog
 import org.koin.androidx.viewmodel.ext.android.viewModel
+import android.widget.Toast
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.example.yandexmedia.presentation.adapter.PlaylistBottomSheetAdapter
+import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.example.yandexmedia.domain.model.Track
 
 class PlayerFragment : Fragment(R.layout.fragment_player) {
 
     private val viewModel: PlayerViewModel by viewModel()
 
-    private lateinit var playButton: PlaybackButtonView
+    private lateinit var playButton: ImageButton
     private lateinit var favoriteButton: ImageButton
     private lateinit var positionText: TextView
 
@@ -3766,13 +3589,11 @@ class PlayerFragment : Fragment(R.layout.fragment_player) {
 
         view.findViewById<TextView>(R.id.trackName).text = track.trackName
         view.findViewById<TextView>(R.id.artistName).text = track.artistName
-        view.findViewById<TextView>(R.id.lengthValue).text =
-            track.trackTime.ifBlank { "—" }
+        view.findViewById<TextView>(R.id.lengthValue).text = track.trackTime.ifBlank { "—" }
 
         view.findViewById<ImageButton>(R.id.addToPlaylistButton).setOnClickListener {
             showAddToPlaylistBottomSheet(track)
         }
-
         view.findViewById<TextView>(R.id.albumValue).text =
             track.collectionName?.takeIf { it.isNotBlank() } ?: "—"
         view.findViewById<TextView>(R.id.genreValue).text =
@@ -3787,28 +3608,16 @@ class PlayerFragment : Fragment(R.layout.fragment_player) {
             .placeholder(R.drawable.ic_placeholder)
             .into(view.findViewById<ImageView>(R.id.coverImage))
 
-        playButton.setOnClickListener {
-            viewModel.onPlayPause()
-        }
-
-        favoriteButton.setOnClickListener {
-            viewModel.onFavouriteClicked()
-        }
+        playButton.setOnClickListener { viewModel.onPlayPause() }
+        favoriteButton.setOnClickListener { viewModel.onFavouriteClicked() }
     }
 
     private fun showAddToPlaylistBottomSheet(track: Track) {
         val dialog = BottomSheetDialog(requireContext())
-        val contentView = layoutInflater.inflate(
-            R.layout.bottom_sheet_add_to_playlist,
-            null
-        )
+        val contentView = layoutInflater.inflate(R.layout.bottom_sheet_add_to_playlist, null)
 
-        val recyclerView = contentView.findViewById<RecyclerView>(
-            R.id.playlistsRecyclerView
-        )
-        val newPlaylistButton = contentView.findViewById<ImageButton>(
-            R.id.newPlaylistButton
-        )
+        val recyclerView = contentView.findViewById<RecyclerView>(R.id.playlistsRecyclerView)
+        val newPlaylistButton = contentView.findViewById<ImageButton>(R.id.newPlaylistButton)
 
         val adapter = PlaylistBottomSheetAdapter { playlist ->
             viewModel.addTrackToPlaylist(
@@ -3847,15 +3656,36 @@ class PlayerFragment : Fragment(R.layout.fragment_player) {
         dialog.setContentView(contentView)
         dialog.show()
     }
-
     private fun observeState() {
         viewModel.state.observe(viewLifecycleOwner) { state ->
             playButton.isEnabled = state.isPlayButtonEnabled
             positionText.text = state.currentPosition
 
-            playButton.setPlaying(
-                state.playbackState == PlayerState.PlaybackState.Playing
-            )
+            when (state.playbackState) {
+                PlayerState.PlaybackState.Idle -> {
+                    playButton.setImageResource(R.drawable.play)
+                }
+
+                PlayerState.PlaybackState.Prepared -> {
+                    playButton.setImageResource(R.drawable.play)
+                }
+
+                PlayerState.PlaybackState.Playing -> {
+                    playButton.setImageResource(R.drawable.stop)
+                }
+
+                PlayerState.PlaybackState.Paused -> {
+                    playButton.setImageResource(R.drawable.play)
+                }
+
+                PlayerState.PlaybackState.Completed -> {
+                    playButton.setImageResource(R.drawable.play)
+                }
+
+                PlayerState.PlaybackState.Error -> {
+                    playButton.setImageResource(R.drawable.play)
+                }
+            }
 
             updateFavouriteButton(state.isFavourite)
         }
@@ -3867,7 +3697,6 @@ class PlayerFragment : Fragment(R.layout.fragment_player) {
         } else {
             R.drawable.like_button_inactive
         }
-
         favoriteButton.setImageResource(iconRes)
     }
 }
@@ -6246,6 +6075,7 @@ android:viewportHeight="36">
         android:layout_height="wrap_content"
         android:padding="8dp">
 
+        <!-- Кнопка "Назад" -->
         <ImageButton
             android:id="@+id/backButton"
             android:layout_width="24dp"
@@ -6257,6 +6087,7 @@ android:viewportHeight="36">
             app:layout_constraintTop_toTopOf="parent"
             app:srcCompat="@drawable/ic_arrow_back" />
 
+        <!-- Обложка -->
         <com.google.android.material.imageview.ShapeableImageView
             android:id="@+id/coverImage"
             android:layout_width="0dp"
@@ -6264,78 +6095,87 @@ android:viewportHeight="36">
             android:layout_marginTop="24dp"
             android:contentDescription="@string/cover"
             android:scaleType="centerCrop"
-            app:layout_constraintDimensionRatio="1:1"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/backButton"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintDimensionRatio="1:1"
             app:shapeAppearanceOverlay="@style/RoundedImage"
             tools:src="@drawable/placeholder_player" />
 
+
+        <!-- Название трека -->
         <TextView
             android:id="@+id/trackName"
             android:layout_width="0dp"
+            android:paddingTop="10dp"
+            android:fontFamily="@font/ys_display_medium"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:fontFamily="@font/ys_display_medium"
-            android:paddingTop="10dp"
             android:textAppearance="@style/TextAppearance.MaterialComponents.Headline6"
             android:textStyle="bold"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/coverImage"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
             tools:text="Yesterday (Remastered 2009)" />
 
+        <!-- Исполнитель -->
         <TextView
             android:id="@+id/artistName"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
             android:fontFamily="@font/ys_display_medium"
             android:paddingTop="10dp"
             android:paddingBottom="20dp"
-            android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
             android:textStyle="bold"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
+            android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
             app:layout_constraintTop_toBottomOf="@id/trackName"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
             tools:text="The Beatles" />
 
+        <!-- Кнопка "В плейлист" -->
         <ImageButton
+
             android:id="@+id/addToPlaylistButton"
             android:layout_width="56dp"
             android:layout_height="56dp"
             android:layout_marginTop="24dp"
             android:background="@drawable/round_button"
-            android:contentDescription="@string/add_to_playlist"
             android:scaleType="centerCrop"
-            android:src="@drawable/check"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/artistName" />
 
-        <com.example.yandexmedia.presentation.ui.player.PlaybackButtonView
+            android:contentDescription="@string/add_to_playlist"
+            android:src="@drawable/check"
+            app:layout_constraintTop_toBottomOf="@id/artistName"
+            app:layout_constraintStart_toStartOf="parent" />
+
+        <!-- Кнопка Play / Pause -->
+        <ImageButton
             android:id="@+id/playButton"
             android:layout_width="85dp"
             android:layout_height="85dp"
             android:background="@drawable/round_button_play"
             android:contentDescription="@string/play"
-            app:layout_constraintBottom_toBottomOf="@id/addToPlaylistButton"
-            app:layout_constraintEnd_toStartOf="@id/favoriteButton"
-            app:layout_constraintStart_toEndOf="@id/addToPlaylistButton"
+            android:src="@drawable/play"
             app:layout_constraintTop_toTopOf="@id/addToPlaylistButton"
-            app:pauseImage="@drawable/stop"
-            app:playImage="@drawable/play" />
+            app:layout_constraintBottom_toBottomOf="@id/addToPlaylistButton"
+            app:layout_constraintStart_toEndOf="@id/addToPlaylistButton"
+            app:layout_constraintEnd_toStartOf="@id/favoriteButton" />
 
+        <!-- Кнопка "Избранное" -->
         <ImageButton
             android:id="@+id/favoriteButton"
             android:layout_width="56dp"
             android:layout_height="56dp"
+            android:scaleType="centerCrop"
+
             android:background="@drawable/round_button"
             android:contentDescription="@string/favorite"
-            android:scaleType="centerCrop"
             android:src="@drawable/favorite"
+            app:layout_constraintTop_toTopOf="@id/addToPlaylistButton"
             app:layout_constraintBottom_toBottomOf="@id/addToPlaylistButton"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="@id/addToPlaylistButton" />
+            app:layout_constraintEnd_toEndOf="parent" />
+
 
         <TextView
             android:id="@+id/playbackPosition"
@@ -6343,41 +6183,43 @@ android:viewportHeight="36">
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/playButton"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
             tools:text="0:30" />
 
+        <!-- Длительность -->
         <TextView
             android:id="@+id/lengthLabel"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
-            android:fontFamily="@font/ys_display_regular"
             android:text="@string/length"
             android:textColor="@color/color_playlist"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/playbackPosition" />
+            android:fontFamily="@font/ys_display_regular"
+            app:layout_constraintTop_toBottomOf="@id/playbackPosition"
+            app:layout_constraintStart_toStartOf="parent" />
 
         <TextView
             android:id="@+id/lengthValue"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
             android:fontFamily="@font/ys_display_regular"
+            android:layout_height="wrap_content"
             app:layout_constraintBaseline_toBaselineOf="@id/lengthLabel"
             app:layout_constraintEnd_toEndOf="parent"
             tools:text="5:35" />
 
+        <!-- Альбом -->
         <TextView
+            android:fontFamily="@font/ys_display_regular"
             android:id="@+id/albumLabel"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:fontFamily="@font/ys_display_regular"
             android:text="@string/album"
             android:textColor="@color/color_playlist"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/lengthLabel" />
+            app:layout_constraintTop_toBottomOf="@id/lengthLabel"
+            app:layout_constraintStart_toStartOf="parent" />
 
         <TextView
             android:id="@+id/albumValue"
@@ -6386,30 +6228,32 @@ android:viewportHeight="36">
             android:fontFamily="@font/ys_display_regular"
             app:layout_constraintBaseline_toBaselineOf="@id/albumLabel"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintHorizontal_bias="1.0"
             app:layout_constraintStart_toEndOf="@id/albumLabel"
+            app:layout_constraintHorizontal_bias="1.0"
             tools:text="Yesterday (Remastered 2009)" />
 
+        <!-- Год -->
         <TextView
             android:id="@+id/yearLabel"
+            android:fontFamily="@font/ys_display_regular"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:fontFamily="@font/ys_display_regular"
             android:text="@string/year"
             android:textColor="@color/color_playlist"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/albumLabel" />
+            app:layout_constraintTop_toBottomOf="@id/albumLabel"
+            app:layout_constraintStart_toStartOf="parent" />
 
         <TextView
             android:id="@+id/yearValue"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
             android:fontFamily="@font/ys_display_regular"
+            android:layout_height="wrap_content"
             app:layout_constraintBaseline_toBaselineOf="@id/yearLabel"
             app:layout_constraintEnd_toEndOf="parent"
             tools:text="1965" />
 
+        <!-- Жанр -->
         <TextView
             android:id="@+id/genreLabel"
             android:layout_width="wrap_content"
@@ -6418,8 +6262,8 @@ android:viewportHeight="36">
             android:fontFamily="@font/ys_display_regular"
             android:text="@string/genre"
             android:textColor="@color/color_playlist"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/yearLabel" />
+            app:layout_constraintTop_toBottomOf="@id/yearLabel"
+            app:layout_constraintStart_toStartOf="parent" />
 
         <TextView
             android:id="@+id/genreValue"
@@ -6430,18 +6274,19 @@ android:viewportHeight="36">
             app:layout_constraintEnd_toEndOf="parent"
             tools:text="Rock" />
 
+        <!-- Страна -->
         <TextView
             android:id="@+id/countryLabel"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
             android:layout_marginBottom="16dp"
-            android:fontFamily="@font/ys_display_regular"
             android:text="@string/country"
+            android:fontFamily="@font/ys_display_regular"
             android:textColor="@color/color_playlist"
-            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/genreLabel"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/genreLabel" />
+            app:layout_constraintBottom_toBottomOf="parent" />
 
         <TextView
             android:id="@+id/countryValue"
@@ -6454,6 +6299,7 @@ android:viewportHeight="36">
     </androidx.constraintlayout.widget.ConstraintLayout>
 
 </androidx.core.widget.NestedScrollView>
+
 
 ===== FILE: ./res\layout\fragment_playlist.xml =====
 
@@ -7309,18 +7155,6 @@ android:viewportHeight="36">
     </fragment>
 
 </navigation>
-
-===== FILE: ./res\values\attrs.xml =====
-
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-
-    <declare-styleable name="PlaybackButtonView">
-        <attr name="playImage" format="reference" />
-        <attr name="pauseImage" format="reference" />
-    </declare-styleable>
-
-</resources>
 
 ===== FILE: ./res\values\colors.xml =====
 
