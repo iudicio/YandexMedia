@@ -16,36 +16,42 @@ interface PlaylistsDao {
     @Query("SELECT * FROM playlists ORDER BY id DESC")
     fun getPlaylists(): Flow<List<PlaylistEntity>>
 
+    @Query("SELECT * FROM playlists WHERE id = :playlistId LIMIT 1")
+    fun getPlaylistById(playlistId: Long): Flow<PlaylistEntity?>
+
+    @Query(
+        """
+        SELECT playlist_tracks.* FROM playlist_tracks
+        INNER JOIN playlist_track_cross_ref 
+        ON playlist_tracks.trackId = playlist_track_cross_ref.trackId
+        WHERE playlist_track_cross_ref.playlistId = :playlistId
+        """
+    )
+    fun getTracksForPlaylist(playlistId: Long): Flow<List<PlaylistTrackEntity>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertPlaylist(
-        playlist: PlaylistEntity
-    )
+    suspend fun insertPlaylist(playlist: PlaylistEntity)
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
-    suspend fun insertTrack(
-        track: PlaylistTrackEntity
-    )
+    suspend fun insertTrack(track: PlaylistTrackEntity)
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
-    suspend fun insertCrossRef(
-        crossRef: PlaylistTrackCrossRef
-    ): Long
+    suspend fun insertCrossRef(crossRef: PlaylistTrackCrossRef): Long
 
-    @Query("""
+    @Query(
+        """
         UPDATE playlists
         SET tracksCount = tracksCount + 1
         WHERE id = :playlistId
-    """)
-    suspend fun incrementTracksCount(
-        playlistId: Long
+        """
     )
+    suspend fun incrementTracksCount(playlistId: Long)
 
     @Transaction
     suspend fun addTrackToPlaylist(
         playlistId: Long,
         track: PlaylistTrackEntity
     ): Boolean {
-
         insertTrack(track)
 
         val result = insertCrossRef(
@@ -63,4 +69,65 @@ interface PlaylistsDao {
 
         return isAdded
     }
+
+    @Query(
+        """
+        DELETE FROM playlist_track_cross_ref
+        WHERE playlistId = :playlistId AND trackId = :trackId
+        """
+    )
+    suspend fun deleteTrackFromPlaylist(
+        playlistId: Long,
+        trackId: Long
+    ): Int
+
+    @Query(
+        """
+        UPDATE playlists
+        SET tracksCount = CASE 
+            WHEN tracksCount > 0 THEN tracksCount - 1 
+            ELSE 0 
+        END
+        WHERE id = :playlistId
+        """
+    )
+    suspend fun decrementTracksCount(playlistId: Long)
+
+    @Transaction
+    suspend fun removeTrackFromPlaylist(
+        playlistId: Long,
+        trackId: Long
+    ): Boolean {
+        val deletedRows = deleteTrackFromPlaylist(
+            playlistId = playlistId,
+            trackId = trackId
+        )
+
+        val isDeleted = deletedRows > 0
+
+        if (isDeleted) {
+            decrementTracksCount(playlistId)
+        }
+
+        return isDeleted
+    }
+
+    @Query("DELETE FROM playlists WHERE id = :playlistId")
+    suspend fun deletePlaylist(playlistId: Long)
+
+    @Query(
+        """
+        UPDATE playlists
+        SET name = :name,
+            description = :description,
+            coverPath = :coverPath
+        WHERE id = :playlistId
+        """
+    )
+    suspend fun updatePlaylist(
+        playlistId: Long,
+        name: String,
+        description: String,
+        coverPath: String?
+    )
 }

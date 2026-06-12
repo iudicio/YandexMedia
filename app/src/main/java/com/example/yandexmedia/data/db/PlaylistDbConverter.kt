@@ -42,4 +42,20 @@ class PlaylistDbConverter {
             trackTimeMillis = track.trackTimeMillis
         )
     }
+
+    fun map(entity: PlaylistTrackEntity): Track {
+        return Track(
+            trackId = entity.trackId,
+            trackName = entity.trackName,
+            artistName = entity.artistName,
+            trackTime = entity.trackTime,
+            artworkUrl100 = entity.artworkUrl100,
+            previewUrl = entity.previewUrl,
+            collectionName = entity.collectionName,
+            releaseDate = entity.releaseDate,
+            primaryGenreName = entity.primaryGenreName,
+            country = entity.country,
+            trackTimeMillis = entity.trackTimeMillis
+        )
+    }
 }

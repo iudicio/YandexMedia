@@ -107,7 +107,7 @@
             app:boxStrokeColor="@color/text_input_box_stroke_color"
             android:textColor="@color/playlist_input_text_color"
             android:textColorHint="@color/playlist_input_text_color"
-            android:hint="@string/name"
+            android:hint="@string/description"
             app:boxBackgroundColor="@android:color/transparent"
             app:boxBackgroundMode="outline"
             app:boxCornerRadiusBottomEnd="8dp"

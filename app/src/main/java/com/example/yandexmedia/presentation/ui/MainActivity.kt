@@ -26,7 +26,8 @@ class MainActivity : AppCompatActivity() {
         navController.addOnDestinationChangedListener { _, destination, _ ->
             bottomNavigation.isVisible =
                 destination.id != R.id.playerFragment &&
-                        destination.id != R.id.createPlaylistFragment
+                        destination.id != R.id.createPlaylistFragment &&
+                        destination.id != R.id.playlistFragment
         }
     }
 
@@ -38,6 +39,7 @@ class MainActivity : AppCompatActivity() {
         bottomNavigation.isVisible =
             isVisible &&
                     currentDestinationId != R.id.playerFragment &&
-                    currentDestinationId != R.id.createPlaylistFragment
+                    currentDestinationId != R.id.createPlaylistFragment &&
+                    currentDestinationId != R.id.playlistFragment
     }
 }

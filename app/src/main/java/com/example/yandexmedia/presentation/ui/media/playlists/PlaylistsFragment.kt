@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.view.View
 import android.widget.ImageButton
 import android.widget.LinearLayout
+import androidx.core.os.bundleOf
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
@@ -29,7 +30,12 @@ class PlaylistsFragment : Fragment(R.layout.fragment_playlists) {
         playlistsRecyclerView = view.findViewById(R.id.playlistsRecyclerView)
         emptyPlaylistsContainer = view.findViewById(R.id.emptyPlaylistsContainer)
 
-        adapter = PlaylistAdapter()
+        adapter = PlaylistAdapter { playlist ->
+            findNavController().navigate(
+                R.id.playlistFragment,
+                bundleOf("playlistId" to playlist.id)
+            )
+        }
 
         playlistsRecyclerView.layoutManager = GridLayoutManager(requireContext(), 2)
         playlistsRecyclerView.adapter = adapter
