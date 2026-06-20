@@ -1,5 +1,7 @@
 <resources>
     <string name="app_name">YandexMedia</string>
+    <string name="player_notification_title">Playlist Maker</string>
+    <string name="player_notification_channel">Воспроизведение музыки</string>
 
     <!-- Главный экран -->
     <string name="title_playlist_maker">Playlist maker</string>
