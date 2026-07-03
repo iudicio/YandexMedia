@@ -1,8 +1,6 @@
 package com.example.yandexmedia.di
 
 import android.content.Context
-import android.os.Handler
-import android.os.Looper
 import androidx.room.Room
 import com.example.yandexmedia.data.db.AppDatabase
 import com.example.yandexmedia.data.db.PlaylistDbConverter
@@ -40,15 +38,6 @@ import org.koin.android.ext.koin.androidContext
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
-
-interface MediaPlayerProvider {
-    fun create(): android.media.MediaPlayer
-}
-
-class AndroidMediaPlayerProvider : MediaPlayerProvider {
-    override fun create(): android.media.MediaPlayer =
-        android.media.MediaPlayer()
-}
 
 val appModule = module {
 
@@ -130,12 +119,6 @@ val appModule = module {
         ExternalNavigatorImpl()
     }
 
-    single { Handler(Looper.getMainLooper()) }
-
-    single<MediaPlayerProvider> {
-        AndroidMediaPlayerProvider()
-    }
-
     viewModel {
         SearchViewModel(
             searchInteractor = get(),
@@ -145,8 +128,6 @@ val appModule = module {
 
     viewModel {
         PlayerViewModel(
-            handler = get(),
-            mediaPlayerProvider = get(),
             favoritesInteractor = get(),
             playlistsInteractor = get()
         )
