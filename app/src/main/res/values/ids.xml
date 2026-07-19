@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="compose_view_search" type="id" />
+    <item name="compose_view_media_library" type="id" />
+    <item name="compose_view_settings" type="id" />
+</resources>
