@@ -22,6 +22,7 @@
     <!-- Экран поиска -->
     <string name="title_search">Поиск</string>
     <string name="hint_search">Поиск</string>
+    <string name="clear_search">Очистить поиск</string>
 
     <!-- Экран настроек -->
     <string name="content_back">Назад</string>
@@ -71,8 +72,9 @@
     <string name="no_email_app">На устройстве нет почтового клиента</string>
     <string name="no_browser_app">На устройстве нет браузера</string>
     <string name="share_error">Не удалось открыть приложения для шаринга</string>
-    <string name="new_playlist">Новывй плейлист</string>
+    <string name="new_playlist">Новый плейлист</string>
     <string name="empty_playlists_message">Вы не создали\n ни одного плейлиста</string>
+    <string name="playlist_tracks_count">%1$d треков</string>
     <string name="title_player">Аудиоплеер</string>
     <string name="name">Название*</string>
     <string name="description">Описание</string>

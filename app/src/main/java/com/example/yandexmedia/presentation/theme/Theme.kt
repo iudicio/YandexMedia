@@ -1,44 +1,52 @@
 package com.example.yandexmedia.presentation.theme
 
-import android.app.Activity
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
-
-private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
-)
-
-private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
-)
+import androidx.compose.runtime.remember
+import androidx.compose.ui.res.colorResource
+import com.example.yandexmedia.R
 
 @Composable
 fun YandexMediaTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
-    val colors = if (darkTheme) DarkColorScheme else LightColorScheme
+    val background = colorResource(R.color.color_back_ground)
+    val contentColor = colorResource(R.color.color_black)
+    val accent = colorResource(R.color.color_primary_permomently)
+    val muted = colorResource(R.color.color_track_gray)
+    val input = colorResource(R.color.color_gray_light)
+    val onPrimary = colorResource(R.color.color_primary_white)
+    val colors = remember(darkTheme, background, contentColor, accent, muted, input, onPrimary) {
+        if (darkTheme) {
+            darkColorScheme(
+                primary = accent,
+                onPrimary = onPrimary,
+                background = background,
+                onBackground = contentColor,
+                surface = background,
+                onSurface = contentColor,
+                surfaceVariant = input,
+                onSurfaceVariant = muted,
+                outline = muted
+            )
+        } else {
+            lightColorScheme(
+                primary = accent,
+                onPrimary = onPrimary,
+                background = background,
+                onBackground = contentColor,
+                surface = background,
+                onSurface = contentColor,
+                surfaceVariant = input,
+                onSurfaceVariant = muted,
+                outline = muted
+            )
+        }
+    }
 
     MaterialTheme(
         colorScheme = colors,

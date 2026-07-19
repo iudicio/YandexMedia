@@ -1,343 +1,79 @@
 package com.example.yandexmedia.presentation.ui.search
 
-import android.content.Context
 import android.os.Bundle
-import android.text.Editable
-import android.text.TextWatcher
+import android.os.SystemClock
+import android.view.LayoutInflater
 import android.view.View
-import android.view.inputmethod.InputMethodManager
-import android.widget.Button
-import android.widget.EditText
-import android.widget.ImageView
-import android.widget.LinearLayout
-import android.widget.ProgressBar
-import androidx.activity.OnBackPressedCallback
-import androidx.core.view.isVisible
+import android.view.ViewGroup
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import com.example.yandexmedia.R
 import com.example.yandexmedia.domain.model.Track
-import com.example.yandexmedia.presentation.adapter.TrackAdapter
-import com.example.yandexmedia.presentation.viewmodel.SearchState
+import com.example.yandexmedia.presentation.theme.YandexMediaTheme
 import com.example.yandexmedia.presentation.viewmodel.SearchViewModel
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import org.koin.androidx.viewmodel.ext.android.viewModel
 
-class SearchFragment : Fragment(R.layout.fragment_search) {
-
-    private lateinit var searchAdapter: TrackAdapter
-    private lateinit var searchRecyclerView: RecyclerView
-    private lateinit var placeholderLayout: LinearLayout
-    private lateinit var networkErrorLayout: LinearLayout
-    private lateinit var retryButton: Button
-    private lateinit var historyContainer: LinearLayout
-    private lateinit var historyRecyclerView: RecyclerView
-    private lateinit var historyAdapter: TrackAdapter
-    private lateinit var searchEditText: EditText
-    private lateinit var clearButton: ImageView
-    private lateinit var progressBar: ProgressBar
-
-    private var searchQueryText: String = ""
-    private var isClickAllowed = true
-    private var clickJob: Job? = null
-
+class SearchFragment : Fragment() {
     private val viewModel: SearchViewModel by viewModel()
+    private var lastTrackClickAt = 0L
 
-    companion object {
-        private const val CLICK_DEBOUNCE_DELAY = 1000L
-    }
-
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-
-        initViews(view)
-        initHistory()
-        initSearchList()
-        initListeners()
-        setupBackPressed()
-        observeState()
-
-        searchEditText.requestFocus()
-        showKeyboard(searchEditText)
-        showHistoryIfNeeded()
-    }
-
-    override fun onDestroyView() {
-        clickJob?.cancel()
-        clickJob = null
-        isClickAllowed = true
-        super.onDestroyView()
-    }
-
-    private fun initViews(view: View) {
-        progressBar = view.findViewById(R.id.progressBar)
-        searchEditText = view.findViewById(R.id.searchEditText)
-        clearButton = view.findViewById(R.id.clearButton)
-        searchRecyclerView = view.findViewById(R.id.searchResultsRecyclerView)
-        placeholderLayout = view.findViewById(R.id.placeholderLayout)
-        networkErrorLayout = view.findViewById(R.id.networkErrorLayout)
-        retryButton = view.findViewById(R.id.retryButton)
-        historyContainer = view.findViewById(R.id.historyContainer)
-        historyRecyclerView = view.findViewById(R.id.historyRecyclerView)
-    }
-
-    private fun initHistory() {
-        historyRecyclerView.layoutManager = LinearLayoutManager(requireContext())
-
-        historyAdapter = TrackAdapter(
-            arrayListOf(),
-            onTrackClick = { track ->
-                if (clickDebounce()) openPlayer(track)
-            },
-            onClearHistoryClick = {
-                viewModel.clearHistory()
-                historyAdapter.updateTracks(emptyList())
-                historyContainer.isVisible = false
-            },
-            showFooter = true
-        )
-
-        historyRecyclerView.adapter = historyAdapter
-    }
-
-    private fun initSearchList() {
-        searchRecyclerView.layoutManager = LinearLayoutManager(requireContext())
-
-        searchAdapter = TrackAdapter(
-            arrayListOf(),
-            onTrackClick = { track ->
-                if (clickDebounce()) {
-                    viewModel.addToHistory(track)
-                    openPlayer(track)
-                }
-            },
-            showFooter = false
-        )
-
-        searchRecyclerView.adapter = searchAdapter
-    }
-
-    private fun initListeners() {
-        clearButton.setOnClickListener {
-            searchEditText.text.clear()
-            hideKeyboard(searchEditText)
-            searchAdapter.updateTracks(emptyList())
-            viewModel.onQueryChanged("")
-            showHistoryIfNeeded()
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        if (viewModel.query.value.isEmpty()) {
+            savedInstanceState?.getString(STATE_QUERY)?.let(viewModel::onQueryChanged)
         }
-
-        retryButton.setOnClickListener {
-            if (searchQueryText.length > 2) {
-                viewModel.onRetry()
-            } else {
-                showHistoryIfNeeded()
-            }
-        }
-
-        searchEditText.setOnFocusChangeListener { _, hasFocus ->
-            if (hasFocus && searchEditText.text.isEmpty()) {
-                showHistoryIfNeeded()
-            } else {
-                historyContainer.isVisible = false
-            }
-        }
-
-        searchEditText.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(
-                s: CharSequence?,
-                start: Int,
-                count: Int,
-                after: Int
-            ) = Unit
-
-            override fun onTextChanged(
-                s: CharSequence?,
-                start: Int,
-                before: Int,
-                count: Int
-            ) {
-                searchQueryText = s?.toString() ?: ""
-                clearButton.isVisible = !s.isNullOrEmpty()
-
-                viewModel.onQueryChanged(searchQueryText)
-
-                if (searchQueryText.length > 2) {
-                    historyContainer.isVisible = false
-                } else {
-                    searchAdapter.updateTracks(emptyList())
-
-                    if (searchEditText.hasFocus()) {
-                        showHistoryIfNeeded()
-                    } else {
-                        showDefaultState()
-                    }
-                }
-            }
-
-            override fun afterTextChanged(s: Editable?) = Unit
-        })
     }
 
-    private fun setupBackPressed() {
-        requireActivity().onBackPressedDispatcher.addCallback(
-            viewLifecycleOwner,
-            object : OnBackPressedCallback(true) {
-                override fun handleOnBackPressed() {
-                    if (searchEditText.hasFocus()) {
-                        hideKeyboard(searchEditText)
-                    } else {
-                        isEnabled = false
-                        requireActivity().onBackPressedDispatcher.onBackPressed()
-                    }
-                }
-            }
-        )
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putString(STATE_QUERY, viewModel.query.value)
+        super.onSaveInstanceState(outState)
     }
 
-    private fun observeState() {
-        viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.state.collect { state ->
-                when (state) {
-                    SearchState.Idle -> {
-                        hideLoading()
-                        if (searchEditText.text.isNullOrEmpty() && searchEditText.hasFocus()) {
-                            showHistoryIfNeeded()
-                        } else {
-                            showDefaultState()
-                        }
-                    }
-
-                    SearchState.Loading -> showLoading()
-
-                    SearchState.Empty -> {
-                        historyContainer.isVisible = false
-                        searchAdapter.updateTracks(emptyList())
-                        showResultState(isEmpty = true)
-                    }
-
-                    is SearchState.Content -> {
-                        historyContainer.isVisible = false
-                        searchAdapter.updateTracks(state.tracks)
-                        showResultState(isEmpty = false)
-                    }
-
-                    SearchState.NetworkError -> showNetworkError()
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, state: Bundle?): View =
+        ComposeView(requireContext()).apply {
+            id = R.id.compose_view_search
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+            setContent {
+                val searchState by viewModel.state.collectAsState()
+                val history by viewModel.history.collectAsState()
+                val query by viewModel.query.collectAsState()
+                YandexMediaTheme {
+                    SearchScreen(
+                        query = query,
+                        state = searchState,
+                        history = history,
+                        onQueryChange = viewModel::onQueryChanged,
+                        onTrackClick = { openPlayer(it, addToHistory = true) },
+                        onHistoryTrackClick = { openPlayer(it, addToHistory = false) },
+                        onClearHistory = viewModel::clearHistory,
+                        onRetry = viewModel::onRetry
+                    )
                 }
             }
         }
 
-        viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.history.collect { history ->
-                val shouldShow = searchEditText.text.isEmpty() &&
-                        history.isNotEmpty()
-
-                if (shouldShow) {
-                    historyAdapter.updateTracks(history)
-                    historyContainer.isVisible = true
-                    searchRecyclerView.isVisible = false
-                    placeholderLayout.isVisible = false
-                    networkErrorLayout.isVisible = false
-                } else {
-                    historyContainer.isVisible = false
-                }
-            }
-        }
-    }
-
-    private fun openPlayer(track: Track) {
-        val navController = findNavController()
-        if (navController.currentDestination?.id != R.id.searchFragment) return
-
-        val bundle = Bundle().apply {
-            putParcelable("track", track)
-        }
-        navController.navigate(R.id.playerFragment, bundle)
-    }
-
-    private fun clickDebounce(): Boolean {
-        if (!isClickAllowed) return false
-
-        isClickAllowed = false
-        clickJob?.cancel()
-        clickJob = viewLifecycleOwner.lifecycleScope.launch {
-            delay(CLICK_DEBOUNCE_DELAY)
-            isClickAllowed = true
-        }
-
-        return true
-    }
-
-    private fun showHistoryIfNeeded() {
+    override fun onResume() {
+        super.onResume()
         viewModel.loadHistory()
-        val history = viewModel.history.value
+    }
 
-        val shouldShow = searchEditText.text.isEmpty() &&
-                history.isNotEmpty()
-
-        if (shouldShow) {
-            historyAdapter.updateTracks(history)
-            historyContainer.isVisible = true
-            searchRecyclerView.isVisible = false
-            placeholderLayout.isVisible = false
-            networkErrorLayout.isVisible = false
-        } else {
-            historyContainer.isVisible = false
+    private fun openPlayer(track: Track, addToHistory: Boolean) {
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastTrackClickAt < CLICK_DEBOUNCE_DELAY) return
+        if (findNavController().currentDestination?.id == R.id.searchFragment) {
+            lastTrackClickAt = now
+            if (addToHistory) viewModel.addToHistory(track)
+            findNavController().navigate(R.id.playerFragment, bundleOf("track" to track))
         }
     }
 
-    private fun showLoading() {
-        progressBar.isVisible = true
-        searchRecyclerView.isVisible = false
-        placeholderLayout.isVisible = false
-        networkErrorLayout.isVisible = false
-        historyContainer.isVisible = false
-    }
-
-    private fun hideLoading() {
-        progressBar.isVisible = false
-    }
-
-    private fun showResultState(isEmpty: Boolean) {
-        hideLoading()
-        searchRecyclerView.isVisible = !isEmpty
-        placeholderLayout.isVisible = isEmpty
-        networkErrorLayout.isVisible = false
-        historyContainer.isVisible = false
-    }
-
-    private fun showNetworkError() {
-        hideLoading()
-        searchRecyclerView.isVisible = false
-        placeholderLayout.isVisible = false
-        networkErrorLayout.isVisible = true
-        historyContainer.isVisible = false
-    }
-
-    private fun showDefaultState() {
-        hideLoading()
-        searchRecyclerView.isVisible = false
-        placeholderLayout.isVisible = false
-        networkErrorLayout.isVisible = false
-        historyContainer.isVisible = false
-    }
-
-    private fun showKeyboard(editText: EditText) {
-        editText.post {
-            val imm = requireContext()
-                .getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-            imm.showSoftInput(editText, InputMethodManager.SHOW_IMPLICIT)
-        }
-    }
-
-    private fun hideKeyboard(editText: EditText) {
-        val imm = requireContext()
-            .getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-        imm.hideSoftInputFromWindow(editText.windowToken, 0)
-        editText.clearFocus()
+    private companion object {
+        const val CLICK_DEBOUNCE_DELAY = 1_000L
+        const val STATE_QUERY = "search_query"
     }
 }
