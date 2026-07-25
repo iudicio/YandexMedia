@@ -10,6 +10,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.isActive
 
 class SearchViewModel(
     private val searchInteractor: SearchInteractor,
@@ -22,7 +23,9 @@ class SearchViewModel(
     private val _history = MutableStateFlow<List<Track>>(emptyList())
     val history: StateFlow<List<Track>> = _history
 
-    private var lastQuery: String = ""
+    private val _query = MutableStateFlow("")
+    val query: StateFlow<String> = _query
+
     private var searchJob: Job? = null
 
     companion object {
@@ -44,7 +47,7 @@ class SearchViewModel(
     }
 
     fun onQueryChanged(text: String) {
-        lastQuery = text
+        _query.value = text
         searchJob?.cancel()
 
         if (text.length <= 2) {
@@ -54,11 +57,14 @@ class SearchViewModel(
 
         searchJob = viewModelScope.launch {
             delay(SEARCH_DEBOUNCE_DELAY)
-            if (text != lastQuery || text.length <= 2) return@launch
+            if (text != _query.value || text.length <= 2) return@launch
 
             _state.value = SearchState.Loading
 
-            when (val result = searchInteractor.search(text)) {
+            val result = searchInteractor.search(text)
+            if (!isActive || text != _query.value) return@launch
+
+            when (result) {
                 is SearchInteractor.SearchResult.Success -> {
                     val tracks = result.tracks
                     _state.value =
@@ -78,6 +84,6 @@ class SearchViewModel(
     }
 
     fun onRetry() {
-        onQueryChanged(lastQuery)
+        onQueryChanged(_query.value)
     }
 }
